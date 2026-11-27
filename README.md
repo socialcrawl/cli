@@ -6,8 +6,6 @@ socialcrawl runs social media research from your terminal or your coding agent. 
 npx -y socialcrawl@latest init
 ```
 
-Not on npm yet (27/11/2026). Until the first release, run it from GitHub: `npx -y github:socialcrawl/cli init`.
-
 ## What `init` does
 
 1. Uses `SOCIALCRAWL_API_KEY` or a key you saved before. If there is none, it asks you to paste a key, or to press Enter and sign in by email with a link and a 6-digit code (a free key with 100 credits, no card).
