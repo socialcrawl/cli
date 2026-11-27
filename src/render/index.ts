@@ -49,7 +49,9 @@ export function terminalSummary(run: RunOutput, dir: string): string[] {
   }
   const notSent = run.run.notRead.length;
   const failed = run.run.errors.length;
-  const unknown = run.report.evidence.unverified.length;
+  // The same lines the report's "What we could not verify" lists: the gaps, and each finding with limitations.
+  const ev = run.report.evidence;
+  const unknown = ev.unverified.length + ev.findings.filter((f) => f.limitations.length).length;
   const gaps = [
     notSent || failed
       ? `Not read: ${[

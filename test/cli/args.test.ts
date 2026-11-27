@@ -17,6 +17,10 @@ describe("parseCli", () => {
     const init = parse(["init", "--yes"]);
     assert.equal(init.cmd, "init");
     assert.equal(init.cmd === "init" && init.yes, true);
+    const project = parse(["init", "--project", "--skills-from", "../workflows"]);
+    assert.ok(project.cmd === "init" && project.project && project.skillsFrom === "../workflows" && project.install);
+    const bare = parse(["init", "--no-install"]);
+    assert.ok(bare.cmd === "init" && !bare.install && !bare.project);
   });
 
   it("reads a workflow run with its input and the shared options", () => {

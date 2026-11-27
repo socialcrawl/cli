@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
 
-import { saveConfig } from "../../src/config.ts";
+import { readConfig, saveConfig } from "../../src/config.ts";
 import { main } from "../../src/cli.ts";
 import type { MainDeps } from "../../src/cli.ts";
 import { EXIT } from "../../src/run.ts";
@@ -83,6 +83,32 @@ describe("main", () => {
     assert.equal(call.headers["x-api-key"], "sc_Saved_notarealkey0000");
     assert.equal(call.headers["X-SocialCrawl-Client"], "template:cli");
     assert.equal(call.headers["Cache-Control"], "no-cache");
+  });
+
+  it("init asks for the key, checks it and saves it", async () => {
+    const asked: string[] = [];
+    const { d, out } = deps({ interactive: true, ask: async (q) => (asked.push(q), "sc_Saved_notarealkey0000") });
+    assert.equal(await main(["init", "--no-install"], d), EXIT.ok);
+    assert.equal(asked.length, 1);
+    assert.equal(readConfig(d.home).apiKey, "sc_Saved_notarealkey0000");
+    assert.ok(out.join("\n").includes("1,234 credits"));
+  });
+
+  it("runs on a saved email sign-in, refreshing the token once when it has expired", async () => {
+    const { d } = deps();
+    saveConfig(d.home, { accessToken: "old", refreshToken: "rt1", clientId: "cid" });
+    const auths: string[] = [];
+    d.fetch = async (input, init) => {
+      const url = String(input);
+      if (url.endsWith("/api/auth/oauth2/token")) return new Response(JSON.stringify({ access_token: "new", refresh_token: "rt2" }), { status: 200 });
+      const a = String((init?.headers as Record<string, string>).Authorization);
+      auths.push(a);
+      if (a === "Bearer old") return new Response(JSON.stringify({ success: false, error: { type: "UNAUTHORIZED" } }), { status: 401 });
+      return new Response(JSON.stringify({ success: true, data: { balance: 50, items: [] }, credits_used: 0, request_id: "r" }), { status: 200 });
+    };
+    assert.equal(await main(["whoami"], d), EXIT.ok);
+    assert.deepEqual(auths, ["Bearer old", "Bearer new"]);
+    assert.deepEqual([readConfig(d.home).accessToken, readConfig(d.home).refreshToken], ["new", "rt2"]);
   });
 
   it("a run without a key exits 1 with the way to get one", async () => {

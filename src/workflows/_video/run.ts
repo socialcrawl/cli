@@ -201,6 +201,15 @@ export async function runVideo(session: Session, spec: VideoSpec, args: Workflow
     for (const r of g) pageOf.set(r.id, page);
   }
 
+  // A candidate's own row on its creator's list may carry what the search row lacks (Instagram
+  // gives a reel's music only there): its sound and hashtags are copied over, nothing else.
+  for (const r of candidates.rows) {
+    const own = pageOf.get(r.id)?.find((p) => p.id === r.id);
+    if (!own) continue;
+    if (!r.sound && own.sound) r.sound = own.sound;
+    if (!r.hashtags && own.hashtags) r.hashtags = own.hashtags;
+  }
+
   // 5. ratio and flags
   const flags = new Map(engagementFlags(candidates.rows).map((f) => [f.id, f]));
   const items: VideoItem[] = [];

@@ -17,7 +17,7 @@ export type Parsed =
   | { cmd: "help" }
   | { cmd: "version" }
   | { cmd: "whoami" }
-  | { cmd: "init"; yes: boolean; skillsFrom?: string; install: boolean }
+  | { cmd: "init"; yes: boolean; skillsFrom?: string; install: boolean; project: boolean }
   | { cmd: "run"; workflow: Workflow; args: WorkflowArgs; opts: RunOptions };
 
 const SHARED: NonNullable<ParseArgsConfig["options"]> = {
@@ -55,8 +55,19 @@ export function parseCli(argv: string[], workflows: Workflow[], now: Date): Pars
   if (first === "--version" || first === "-v" || first === "version") return { cmd: "version" };
   if (first === "whoami") return { cmd: "whoami" };
   if (first === "init") {
-    const { values } = parse(rest, { yes: { type: "boolean", default: false }, "skills-from": { type: "string" }, "no-install": { type: "boolean", default: false } });
-    return { cmd: "init", yes: values.yes === true, skillsFrom: values["skills-from"] as string | undefined, install: values["no-install"] !== true };
+    const { values } = parse(rest, {
+      yes: { type: "boolean", default: false },
+      "skills-from": { type: "string" },
+      "no-install": { type: "boolean", default: false },
+      project: { type: "boolean", default: false },
+    });
+    return {
+      cmd: "init",
+      yes: values.yes === true,
+      ...(values["skills-from"] !== undefined ? { skillsFrom: values["skills-from"] as string } : {}),
+      install: values["no-install"] !== true,
+      project: values.project === true,
+    };
   }
   const workflow = workflows.find((w) => w.name === first);
   if (!workflow) {

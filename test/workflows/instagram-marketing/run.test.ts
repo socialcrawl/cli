@@ -126,6 +126,15 @@ describe("instagram-marketing: the run", () => {
     assert.ok((b?.peers ?? 0) >= 8);
   });
 
+  it("takes a reel's music from its own row on the creator's reel list, since search rows carry none", async () => {
+    const own = reel({ id: "R1", author: "bigbrand", views: 500_000, at: "2026-11-20T15:00:00Z", ext: { music_id: "m9", music: { id: "m9", track_title: "Viral Song" } } });
+    const routes = world().map((r) => (r.endpoint === "instagram/profile/reels" && r.when?.({ handle: "bigbrand" }, undefined) ? { ...r, data: { items: [own, ...(r.data as { items: unknown[] }).items] } } : r));
+    const { session } = fakeSession(routes);
+    const run = await runVideo(session, INSTAGRAM, ARGS);
+    assert.deepEqual(run.items.find((i) => i.row.id === "R1")?.row.sound, { id: "m9", title: "Viral Song", original: null });
+    assert.equal(run.items.find((i) => i.row.id === "R1")?.breakout.multiple, 50, "the reel itself is still left out of its own baseline");
+  });
+
   it("says 'its' for a single break-out", async () => {
     const one = world().map((r) => (r.endpoint === "instagram/search/reels" ? { ...r, data: { items: [R1, R3] } } : r));
     const { session } = fakeSession(one);

@@ -73,6 +73,15 @@ describe("terminalSummary", () => {
   });
 });
 
+describe("terminalSummary and the report agree", () => {
+  it("counts every line of the report's 'What we could not verify', limitations included", () => {
+    const run = sampleRun();
+    run.report.evidence.add({ claim: "Reach on LinkedIn", confidence: "unknown", numbers: { views: null }, requests: [] });
+    const text = terminalSummary(run, "x").join("\n");
+    assert.ok(/Not verified: 2 items/.test(text), text);
+  });
+});
+
 describe("runFolderName", () => {
   it("is <workflow>-<slug>-<YYYY-MM-DD>", () => {
     assert.equal(runFolderName("social-viral", "AI coding tools", new Date("2026-11-27T10:00:00Z")), "social-viral-ai-coding-tools-2026-11-27");

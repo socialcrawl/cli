@@ -4,12 +4,15 @@
 import { spawn } from "node:child_process";
 import { realpathSync } from "node:fs";
 import { homedir } from "node:os";
+import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 
 import { UsageError, parseCli } from "./args.ts";
-import { credentialsFrom, maskKey, readConfig } from "./config.ts";
+import { tokenFetch } from "./auth.ts";
+import { credentialsFrom, maskKey, readConfig, saveConfig } from "./config.ts";
 import type { Credentials } from "./config.ts";
-import { createKit, getAKeyUrl, OutOfCredits, offerLines } from "./kit/kit.ts";
+import { runInit } from "./init.ts";
+import { createKit, OutOfCredits, offerLines } from "./kit/kit.ts";
 import { EXIT, runWorkflow } from "./run.ts";
 import { VERSION } from "./version.ts";
 import { WORKFLOWS } from "./workflows/index.ts";
@@ -27,6 +30,9 @@ export interface MainDeps {
   now: () => Date;
   workflows: Workflow[];
   openFile?: (file: string) => void;
+  /** False when there is no terminal to ask in. */
+  interactive?: boolean;
+  ask?: (question: string, opts?: { hidden?: boolean }) => Promise<string>;
 }
 
 const NO_KEY = [
@@ -42,6 +48,7 @@ function helpLines(workflows: Workflow[]): string[] {
     "",
     "Usage:",
     "  socialcrawl init                  set up your key and install the workflows into your agents",
+    "                                    (--project: into this project only; --no-install: the key only)",
     "  socialcrawl whoami                the key in use and its credits",
     '  socialcrawl <workflow> "<input>"  run a workflow',
     "",
@@ -64,9 +71,14 @@ function helpLines(workflows: Workflow[]): string[] {
 }
 
 function kitFor(creds: Credentials, deps: MainDeps, noCache: boolean) {
+  // A saved email sign-in refreshes its token on a 401 and saves the new pair.
+  const base: typeof fetch =
+    creds.kind === "token"
+      ? tokenFetch(creds, { fetch: deps.fetch, onRefresh: (t) => saveConfig(deps.home, { accessToken: t.accessToken, refreshToken: t.refreshToken }) })
+      : deps.fetch;
   const doFetch: typeof fetch = noCache
-    ? (input, init) => deps.fetch(input, { ...init, headers: { ...(init?.headers as Record<string, string>), "Cache-Control": "no-cache" } })
-    : deps.fetch;
+    ? (input, init) => base(input, { ...init, headers: { ...(init?.headers as Record<string, string>), "Cache-Control": "no-cache" } })
+    : base;
   return createKit({
     app: APP,
     version: VERSION,
@@ -103,8 +115,19 @@ export async function main(argv: string[], deps: MainDeps): Promise<number> {
       case "whoami":
         return await whoami(deps);
       case "init":
-        deps.err("init is not built yet in this version. Set SOCIALCRAWL_API_KEY, or get a key: " + getAKeyUrl(APP));
-        return EXIT.error;
+        return await runInit(
+          {
+            env: deps.env,
+            home: deps.home,
+            cwd: deps.cwd,
+            fetch: deps.fetch,
+            out: deps.out,
+            interactive: deps.interactive ?? false,
+            ask: deps.ask ?? (async () => ""),
+            ...(parsed.skillsFrom ? { skillsFrom: parsed.skillsFrom } : {}),
+          },
+          { yes: parsed.yes, install: parsed.install, project: parsed.project },
+        );
       case "run": {
         const creds = credentialsFrom(deps.env, readConfig(deps.home));
         if (!creds) {
@@ -137,6 +160,24 @@ export async function main(argv: string[], deps: MainDeps): Promise<number> {
   }
 }
 
+/** One line from the terminal; a hidden answer (a pasted key) is not echoed. */
+export function askLine(question: string, opts: { hidden?: boolean } = {}): Promise<string> {
+  return new Promise((resolve) => {
+    const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: true });
+    if (opts.hidden) {
+      const write = (rl as unknown as { _writeToOutput?: (s: string) => void })._writeToOutput;
+      (rl as unknown as { _writeToOutput: (s: string) => void })._writeToOutput = (s: string) => {
+        if (s.startsWith(question)) write?.call(rl, question);
+        else if (s.includes("\n") || s.includes("\r")) write?.call(rl, "\n");
+      };
+    }
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(answer);
+    });
+  });
+}
+
 /** Open a file in the person's default app. */
 export function openFile(file: string): void {
   const [cmd, args] =
@@ -164,6 +205,8 @@ if (isEntry()) {
     now: () => new Date(),
     workflows: WORKFLOWS,
     openFile,
+    interactive: Boolean(process.stdin.isTTY && process.stdout.isTTY),
+    ask: askLine,
   });
   process.exitCode = code;
 }
