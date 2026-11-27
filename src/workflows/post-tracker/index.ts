@@ -103,6 +103,8 @@ function trackerResult(t: Tracked, session: Session, args: WorkflowArgs): Workfl
         [
           ["Read it again later: each run adds a reading", `\`npx -y socialcrawl@latest post-tracker ${h.url}\``, "the gain an hour since this reading"],
           ["Six readings an hour apart, in one run", `\`npx -y socialcrawl@latest post-tracker ${h.url} --every 60 --times 6\``, "whether the gain an hour holds or fades"],
+          // Only where the post is a video: an X or Reddit post often is not, and video-teardown refuses it.
+          ...(["tiktok", "instagram", "youtube"].includes(t.ref.platform) ? [["Take it apart shot by shot", `\`npx -y socialcrawl@latest video-teardown ${h.url}\``, "what is on screen and said, its words, sound and comments"]] : []),
         ],
       ),
     },

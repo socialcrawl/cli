@@ -158,7 +158,7 @@ describe("post-tracker: the report", () => {
     assert.equal(q.expected, 3);
   });
 
-  it("prints a median as a whole number, keeps it exact in its history, and suggests no workflow that does not ship", async () => {
+  it("prints a median as a whole number, keeps it exact in its history, and suggests taking the video apart", async () => {
     const root = mkdtempSync(path.join(tmpdir(), "sc-track-"));
     // Twenty earlier videos with 10,000 to 10,019 views: a median of 10,009.5.
     const half = Array.from({ length: 20 }, (_, k) => post({ id: `bigco-h${k}`, author: "bigco", views: 10_000 + k, at: new Date(Date.parse("2026-11-19T00:00:00Z") - k * 86_400_000).toISOString() }));
@@ -168,9 +168,21 @@ describe("post-tracker: the report", () => {
     const md = renderReport(out.report);
     assert.doesNotMatch(md, /10,009\.5/);
     assert.match(md, /a median of 10,010 views/);
-    assert.doesNotMatch(md, /video-teardown/);
+    assert.match(md, /`npx -y socialcrawl@latest video-teardown https:\/\/www\.tiktok\.com\/@bigco\/video\/7712346103240248606`/);
     const v = validateReport(md, out.report.evidence.toJSON(out.report.meta), { requiredSections: [...REPORT_SECTIONS, ...ENGINE_SECTIONS], engineSections: ENGINE_SECTIONS });
     assert.deepEqual(v.problems.filter((p) => p.code === "number_not_in_evidence"), []);
+  });
+
+  it("suggests video-teardown only for a video platform's post", async () => {
+    const root = mkdtempSync(path.join(tmpdir(), "sc-track-"));
+    const RURL = "https://www.reddit.com/r/linux/comments/1y4prjg/linus_torvalds/";
+    const routes: Route[] = [
+      { endpoint: "reddit/post", data: { post: { id: "1y4prjg", url: RURL, content: { text: "Linus" }, author: { username: "someone" }, engagement: { likes: 900, comments: 80 }, published_at: "2026-11-26T10:00:00Z", ext: { subreddit: "linux" } } } },
+      { endpoint: "reddit/subreddit", data: { items: [] } },
+    ];
+    const { session } = sessionIn(root, routes, "2026-11-27T10:00:00Z");
+    const md = renderReport((await workflow.run(session, { input: RURL, flags: {}, deep: false, now: new Date("2026-11-27T10:00:00Z") })).report);
+    assert.doesNotMatch(md, /video-teardown/);
   });
 
   it("gives no multiple when the author's earlier posts had a median under the engine's floor", async () => {

@@ -113,9 +113,9 @@ describe("tiktok-marketing: the report", () => {
     assert.match(JSON.stringify(out.report.evidence.toJSON(out.report.meta)), /2005\.5/);
   });
 
-  it("suggests no workflow that does not ship (video-teardown)", async () => {
+  it("suggests taking the top break-out apart with video-teardown, which ships in v0.1.0", async () => {
     const { md } = await result();
-    assert.doesNotMatch(md, /video-teardown/);
+    assert.match(md, /\| Take it apart shot by shot \| `npx -y socialcrawl@latest video-teardown (https:\/\/www\.tiktok\.com\/\S+|<the first link in data\/posts\.csv>)` \|/);
   });
 
   it("says what it could not read, with the reason", async () => {
