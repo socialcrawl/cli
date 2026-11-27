@@ -14,7 +14,8 @@ import { ApiError } from "../../../src/kit/kit.ts";
 import type { ApiBody, Params } from "../../../src/kit/kit.ts";
 import { EXIT, runWorkflow } from "../../../src/run.ts";
 import { NAME_FLOOR, buildResult, followersOf, whoOf, workflow } from "../../../src/workflows/social-viral/index.ts";
-import { runViral } from "../../../src/workflows/social-viral/runner.ts";
+import { SIZE_READS, runViral, unsizedAccounts } from "../../../src/workflows/social-viral/runner.ts";
+import type { ViralItem } from "../../../src/workflows/social-viral/viral.ts";
 import { Session } from "../../../src/kit/record.ts";
 import { Budget } from "../../../src/engine/rates.ts";
 import { RUN_AT, records, row } from "../../engine/helpers.ts";
@@ -117,14 +118,29 @@ describe("social-viral: the size of an account the search did not give", () => {
   const session = (api: ReturnType<typeof recordedApi>) => new Session({ dir: mkdtempSync(path.join(tmpdir(), "sc-viral-")), kit: api, budget: new Budget(100), skill: "social-viral", version: "0.1.0", now: () => RUN_AT });
   const input = { topic: "AI coding tools", since: "2026-11-19", until: "2026-11-26" };
 
-  it("reads the channel or profile of each card-worthy YouTube or Instagram account of unknown size, at most 5", async () => {
+  it("reads the channel or profile of every break-out's YouTube or Instagram account of unknown size, once each", async () => {
     const { api, sized } = withProfiles(25_000);
     const out = await runViral(session(api), input, { now: () => RUN_AT });
-    const unknown = out.result.items.filter((i) => i.cardWorthy && ["youtube", "instagram"].includes(i.row.platform) && i.row.authorFollowers === null);
-    assert.ok(unknown.length > 0, "the recorded run has such an account");
-    assert.equal(sized.length, Math.min(5, unknown.length));
+    const known = followersOf(out.records.filter((r) => !r.stage.startsWith("sizes:")));
+    const accounts = new Set(
+      out.result.items
+        .filter((i) => i.viral && ["youtube", "instagram"].includes(i.row.platform) && i.row.authorFollowers === null && !known.has(`${i.row.platform}:${i.row.author.toLowerCase()}`))
+        .map((i) => `${i.row.platform}:${i.row.author.toLowerCase()}`),
+    );
+    assert.ok(accounts.size > 0, "the recorded run has such an account");
+    assert.ok(accounts.size <= SIZE_READS);
+    assert.equal(sized.length, accounts.size);
     for (const s of sized) assert.ok(s.channelId || s.handle, JSON.stringify(s));
     assert.ok(out.records.some((r) => r.stage.startsWith("sizes:")));
+  });
+
+  it("picks every break-out, card-worthy or not, one read per account, up to the cap", () => {
+    const item = (author: string, viral: boolean, cardWorthy: boolean, platform: "youtube" | "instagram" | "tiktok" = "youtube") =>
+      ({ viral, cardWorthy, row: row({ platform, author, authorFollowers: null }) }) as unknown as ViralItem;
+    const items = [item("a", true, true), item("b", true, false), item("a", true, false), item("c", false, false), item("d", true, false, "tiktok"), item("e", true, false, "instagram")];
+    assert.deepEqual(unsizedAccounts(items, new Map()).map((i) => i.row.author), ["a", "b", "e"]);
+    assert.deepEqual(unsizedAccounts(items, new Map([["youtube:b", 500]])).map((i) => i.row.author), ["a", "e"]);
+    assert.equal(unsizedAccounts(items, new Map(), 1).length, 1);
   });
 
   it("then names an account of 10,000 followers or more", async () => {

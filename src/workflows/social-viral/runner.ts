@@ -18,7 +18,7 @@ import {
   rankViral,
   searchCeilings,
 } from "./viral.ts";
-import type { BaselinePage, Candidates, PlanInput, ViralResult } from "./viral.ts";
+import type { BaselinePage, Candidates, PlanInput, ViralItem, ViralResult } from "./viral.ts";
 
 export interface ViralRunOptions {
   /** Retweeter pages read for the top X break-outs (1 credit each), to test the boosted rule. */
@@ -28,8 +28,8 @@ export interface ViralRunOptions {
   now?: () => Date;
 }
 
-/** Card-worthy accounts whose size no response gave get one profile read each, at most this many. */
-export const SIZE_READS = 5;
+/** Break-out accounts whose size no response gave get one profile read each, at most this many a run. */
+export const SIZE_READS = 20;
 
 /** The largest follower count read for each author ("tiktok:acme"), across every response of the run. */
 export function followersOf(records: ResponseRecord[]): Map<string, number> {
@@ -48,6 +48,19 @@ export function sizeCall(r: Row): { endpoint: string; params: Params } | null {
   if (r.platform === "youtube") return r.channelId ? { endpoint: "youtube/channel", params: { channelId: r.channelId } } : r.author ? { endpoint: "youtube/channel", params: { handle: r.author } } : null;
   if (r.platform === "instagram" && r.author) return { endpoint: "instagram/profile", params: { handle: r.author } };
   return null;
+}
+
+/** The break-outs whose account needs a size read: one per account, the platforms with a profile read, in rank order. */
+export function unsizedAccounts(items: ViralItem[], known: Map<string, number>, max = SIZE_READS): ViralItem[] {
+  const seen = new Set<string>();
+  const out: ViralItem[] = [];
+  for (const i of items) {
+    const k = `${i.row.platform}:${i.row.author.toLowerCase()}`;
+    if (!i.viral || i.row.authorFollowers !== null || known.has(k) || seen.has(k) || !sizeCall(i.row)) continue;
+    seen.add(k);
+    out.push(i);
+  }
+  return out.slice(0, max);
 }
 
 export interface ViralRunOutput {
@@ -123,12 +136,11 @@ export async function runViral(session: Session, input: PlanInput, opts: ViralRu
     result = rankViral(candidates.rows, plans, pages, { now: now(), retweeters });
   }
 
-  // 7. sizes: the report names an account only from 10,000 followers, so a card-worthy
-  // account the search returned without a count gets one profile read.
+  // 7. sizes: the report names an account only from 10,000 followers, so each break-out's
+  // account the search returned without a count gets one profile read, inside the budget.
   const sizes = new Map<string, number>();
   const known = followersOf(ok());
-  const unsized = result.items.filter((i) => i.cardWorthy && i.row.authorFollowers === null && !known.has(`${i.row.platform}:${i.row.author.toLowerCase()}`));
-  for (const i of unsized.slice(0, SIZE_READS)) {
+  for (const i of unsizedAccounts(result.items, known)) {
     const c = sizeCall(i.row);
     if (!c) continue;
     const rec = await session.call(`sizes:${i.row.platform}`, c.endpoint, c.params, 1);
