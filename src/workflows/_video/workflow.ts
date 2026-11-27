@@ -5,6 +5,8 @@ import type { Row } from "../../engine/index.ts";
 import type { Workflow, WorkflowArgs, WorkflowQuote } from "../types.ts";
 import { videoResult } from "./report.ts";
 import { runVideo } from "./run.ts";
+import { windowOf } from "./window.ts";
+import type { Window } from "./window.ts";
 import type { VideoSpec } from "./spec.ts";
 
 /** A row with every id a baseline call can need, to price one. */
@@ -31,7 +33,7 @@ const PROBE: Row = {
   requestId: null,
 };
 
-export function videoQuote(spec: VideoSpec, deep: boolean): WorkflowQuote {
+export function videoQuote(spec: VideoSpec, deep: boolean, window: Window = windowOf({ now: new Date() })): WorkflowQuote {
   const pick = <T>(d: { default: T; deep: T }) => (deep ? d.deep : d.default);
   const sh = pick(spec.shares);
   const lines: string[] = [];
@@ -47,10 +49,10 @@ export function videoQuote(spec: VideoSpec, deep: boolean): WorkflowQuote {
 
   let sExp = 0;
   let sMax = 0;
-  for (const s of spec.searches("probe", deep)) {
+  for (const s of spec.searches("probe", deep, window)) {
     const r = rateOf(s.endpoint);
-    sExp += s.pages * (r.page + (r.topicHold ? 1 : 0));
-    sMax += s.pages * (r.page + (r.topicHold ?? 0));
+    sExp += s.pages * (r.page + (r.topicHold ? 1 : 0) + (s.extraPerPage ?? 0) / 2);
+    sMax += s.pages * (r.page + (r.topicHold ?? 0) + (s.extraPerPage ?? 0));
   }
   stage("search", sExp, sMax, sh.search);
   if (spec.enrich) stage("enrich", sh.enrich, sh.enrich, sh.enrich);
@@ -82,10 +84,11 @@ export function videoWorkflow(spec: VideoSpec, about: { summary: string; example
     defaultBudget: spec.defaultBudget,
     deepBudget: spec.deepBudget,
     options: { about: { type: "string" } },
-    quote: (args: WorkflowArgs) => videoQuote(spec, args.deep),
+    takesWindow: true,
+    quote: (args: WorkflowArgs) => videoQuote(spec, args.deep, windowOf(args)),
     async run(session, args) {
       const run = await runVideo(session, spec, args);
-      const deepQuote = videoQuote(spec, true);
+      const deepQuote = videoQuote(spec, true, windowOf(args));
       return videoResult(spec, run, session, args, { expected: deepQuote.expected, max: deepQuote.max });
     },
   };

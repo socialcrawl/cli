@@ -6,7 +6,7 @@ import { describe, it } from "node:test";
 
 import { runVideo } from "../../../src/workflows/_video/run.ts";
 import { TIKTOK } from "../../../src/workflows/tiktok-marketing/spec.ts";
-import { fakeSession } from "../_video/fake-kit.ts";
+import { fakeSession, post } from "../_video/fake-kit.ts";
 import { A1, ARGS, B1, E1, TIKTOK_WORLD_NOW, world } from "./world.ts";
 
 describe("tiktok-marketing: the run", () => {
@@ -62,6 +62,23 @@ describe("tiktok-marketing: the run", () => {
     assert.equal(run.transcripts.length, 1);
     assert.equal(run.transcripts[0].rowId, "A1");
     assert.equal(run.transcripts[0].text, "Ship it in a day. Here is how.");
+  });
+
+  it("reads the last 30 days by default: every search sends this-month, and an older video is counted, not measured", async () => {
+    const OLD = post({ id: "O1", author: "oldie", followers: 40_000, views: 900_000, at: "2026-09-01T12:00:00Z" });
+    const routes = world().map((r) => (r.endpoint === "tiktok/search" && r.when?.({}, undefined) ? { ...r, data: { items: [A1, B1, OLD] } } : r));
+    const { kit, session } = fakeSession(routes);
+    const run = await runVideo(session, TIKTOK, ARGS);
+    for (const s of kit.sent.filter((x) => x.endpoint === "tiktok/search")) assert.equal(s.params.date_posted, "this-month", String(s.params.sort_by));
+    assert.equal(run.candidates.outsideWindow, 1);
+    assert.ok(!run.candidates.rows.some((r) => r.id === "O1"));
+    assert.equal(run.window.since, "2026-10-29");
+  });
+
+  it("reads all time when asked, with --since 2000-01-01", async () => {
+    const { kit, session } = fakeSession(world());
+    await runVideo(session, TIKTOK, { ...ARGS, since: "2000-01-01" });
+    for (const s of kit.sent.filter((x) => x.endpoint === "tiktok/search")) assert.equal(s.params.date_posted, undefined);
   });
 
   it("stops at a small budget and says what it did not read", async () => {

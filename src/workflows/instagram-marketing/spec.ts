@@ -9,6 +9,7 @@
 import { baselineKey } from "../../engine/index.ts";
 import type { Row } from "../../engine/index.ts";
 import type { SearchStep, VideoSpec } from "../_video/spec.ts";
+import { instagramDatePosted } from "../_video/window.ts";
 
 export const INSTAGRAM: VideoSpec = {
   workflow: "instagram-marketing",
@@ -18,9 +19,15 @@ export const INSTAGRAM: VideoSpec = {
   accountNoun: "creator",
   defaultBudget: 60,
   deepBudget: 250,
-  searches: (query, deep): SearchStep[] => {
-    const pages = deep ? 4 : 2;
-    return [{ stage: "reels", endpoint: "instagram/search/reels", params: { query, max_pages: pages }, pages }];
+  // Default: the undated search (views on every row), cut to the window by date. Measured on
+  // 27/11/2026: 2 pages for 4 credits gave 6 reels in the last 30 days, against 17 for 26 credits
+  // on the dated search with include=engagement (req-m3nr835HORVizLHS, req-Snp1UDwQC5CTuCNp);
+  // a default run measures 6 creators, so the dated search is kept for --deep.
+  searches: (query, deep, w): SearchStep[] => {
+    const out: SearchStep[] = [{ stage: "reels", endpoint: "instagram/search/reels", params: { query, max_pages: 2 }, pages: 2 }];
+    const dated = instagramDatePosted(w);
+    if (deep && dated) out.push({ stage: "reels-dated", endpoint: "instagram/search/reels", params: { query, date_posted: dated, include: "engagement", max_pages: 2 }, pages: 2, extraPerPage: 30 });
+    return out;
   },
   floorViews: 1_000,
   groupKey: (r: Row) => baselineKey(r),
@@ -47,11 +54,11 @@ export const INSTAGRAM: VideoSpec = {
       const f = (rec.body?.data as { author?: { followers?: unknown } } | undefined)?.author?.followers;
       return typeof f === "number" ? f : null;
     },
-    max: { default: 3, deep: 10 },
-    preRead: { default: 8, deep: 20 },
+    max: { default: 5, deep: 10 },
+    preRead: { default: 6, deep: 20 },
   },
   shares: {
     default: { search: 10, enrich: 0, baseline: 24, comments: 5, transcript: 10, names: 11 },
-    deep: { search: 20, enrich: 0, baseline: 60, comments: 60, transcript: 30, names: 30 },
+    deep: { search: 80, enrich: 0, baseline: 60, comments: 40, transcript: 30, names: 30 },
   },
 };

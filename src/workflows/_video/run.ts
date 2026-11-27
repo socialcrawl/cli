@@ -31,6 +31,8 @@ import type { BaselineStep, Breakout, FlagRead, Row } from "../../engine/index.t
 import type { CallRecord, Session } from "../../kit/record.ts";
 import type { WorkflowArgs } from "../types.ts";
 import { askSummary } from "./comments.ts";
+import { inWindow, windowOf } from "./window.ts";
+import type { Window } from "./window.ts";
 import type { AskSummary } from "./comments.ts";
 import type { Shares, VideoSpec } from "./spec.ts";
 
@@ -50,6 +52,8 @@ export interface Candidates {
   rows: Row[];
   /** Rows the searches returned, one copy each. */
   read: number;
+  /** Published outside the window (or with no date): counted, never measured. */
+  outsideWindow: number;
   belowFloor: number;
   notOriginal: number;
   noViews: number;
@@ -59,6 +63,8 @@ export interface VideoRun {
   topic: string;
   query: string;
   deep: boolean;
+  /** The days read: the last 30 by default. */
+  window: Window;
   searches: CallRecord[];
   /** Every row the searches returned, one copy each, as the enrich stage left them. */
   allRows: Row[];
@@ -82,10 +88,11 @@ function ceiling(endpoint: string, pages: number, topic: boolean): number {
   return pages * (r.page + (topic ? (r.topicHold ?? 0) : 0));
 }
 
-export function candidatesOf(rows: Row[], floorViews: number): Candidates {
-  const c: Candidates = { rows: [], read: rows.length, belowFloor: 0, notOriginal: 0, noViews: 0 };
+export function candidatesOf(rows: Row[], floorViews: number, window: Window | null = null): Candidates {
+  const c: Candidates = { rows: [], read: rows.length, outsideWindow: 0, belowFloor: 0, notOriginal: 0, noViews: 0 };
   for (const r of rows) {
-    if (r.kind !== "original") c.notOriginal++;
+    if (window && !inWindow(r, window)) c.outsideWindow++;
+    else if (r.kind !== "original") c.notOriginal++;
     else if (r.views === null) c.noViews++;
     else if (r.views < floorViews) c.belowFloor++;
     else c.rows.push(r);
@@ -103,9 +110,10 @@ export async function runVideo(session: Session, spec: VideoSpec, args: Workflow
 
   // 1. search
   const searches: CallRecord[] = [];
-  for (const s of spec.searches(query, deep)) {
+  const window = windowOf(args);
+  for (const s of spec.searches(query, deep, window)) {
     const params = stageParams(s.endpoint, s.params, { topic, labels: "default" });
-    const max = Math.min(ceiling(s.endpoint, s.pages, true), shares.search - spentIn(session, "search"));
+    const max = Math.min(ceiling(s.endpoint, s.pages, true) + s.pages * (s.extraPerPage ?? 0), shares.search - spentIn(session, "search"));
     const rec = await session.call(`search:${s.stage}`, s.endpoint, params, max);
     if (rec) searches.push(rec);
   }
@@ -121,7 +129,7 @@ export async function runVideo(session: Session, spec: VideoSpec, args: Workflow
   for (const r of rows) if (r.authorFollowers !== null && !followers.has(spec.groupKey(r))) followers.set(spec.groupKey(r), r.authorFollowers);
 
   // 3. candidates
-  const candidates = candidatesOf(rows, spec.floorViews);
+  const candidates = candidatesOf(rows, spec.floorViews, window);
 
   // 4. baselines, one read per group, best pre-rank first
   const groups = new Map<string, Row[]>();
@@ -271,7 +279,7 @@ export async function runVideo(session: Session, spec: VideoSpec, args: Workflow
     }
   }
 
-  return { topic, query, deep, searches, allRows: rows, candidates, items, unread, baselines, comments, asks: askSummary(comments), transcripts, followers };
+  return { topic, query, deep, window, searches, allRows: rows, candidates, items, unread, baselines, comments, asks: askSummary(comments), transcripts, followers };
 }
 
 function shape(spec: VideoSpec, rows: Row[], call: { endpoint: string }): Row[] {

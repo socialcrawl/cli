@@ -5,6 +5,7 @@
 import { baselineKey } from "../../engine/index.ts";
 import type { Row } from "../../engine/index.ts";
 import { vttText } from "../_video/run.ts";
+import { tiktokDatePosted } from "../_video/window.ts";
 import type { SearchStep, VideoSpec } from "../_video/spec.ts";
 
 export const TIKTOK: VideoSpec = {
@@ -15,13 +16,17 @@ export const TIKTOK: VideoSpec = {
   accountNoun: "creator",
   defaultBudget: 60,
   deepBudget: 250,
-  searches: (query, deep) => {
+  // Every stage carries the narrowest date_posted that covers the window (this-month for the
+  // default 30 days); rows are then cut to the exact window.
+  searches: (query, deep, w) => {
     const pages = deep ? 3 : 1;
+    const date = tiktokDatePosted(w);
+    const when = date ? { date_posted: date } : {};
     const out: SearchStep[] = [
-      { stage: "top", endpoint: "tiktok/search", params: { query, max_pages: pages }, pages },
-      { stage: "most-liked-month", endpoint: "tiktok/search", params: { query, sort_by: "most-liked", date_posted: "this-month", max_pages: pages }, pages },
+      { stage: "top", endpoint: "tiktok/search", params: { query, ...when, max_pages: pages }, pages },
+      { stage: "most-liked", endpoint: "tiktok/search", params: { query, sort_by: "most-liked", ...when, max_pages: pages }, pages },
     ];
-    if (deep) out.push({ stage: "newest", endpoint: "tiktok/search", params: { query, sort_by: "date-posted", max_pages: pages }, pages });
+    if (deep) out.push({ stage: "newest", endpoint: "tiktok/search", params: { query, sort_by: "date-posted", ...when, max_pages: pages }, pages });
     return out;
   },
   floorViews: 1_000,

@@ -10,6 +10,7 @@ import { baselineKey, rowsOf } from "../../engine/index.ts";
 import type { Row } from "../../engine/index.ts";
 import type { Session } from "../../kit/record.ts";
 import type { SearchStep, VideoSpec } from "../_video/spec.ts";
+import { youtubeUploadDate } from "../_video/window.ts";
 
 const VIDEO_ID = /^[\w-]{11}$/;
 const CHUNK = 50;
@@ -74,14 +75,16 @@ export const YOUTUBE: VideoSpec = {
   accountNoun: "channel",
   defaultBudget: 60,
   deepBudget: 250,
-  searches: (query, deep): SearchStep[] => {
+  // The video search carries the window's uploadDate (this_month for the default 30 days); the
+  // Shorts search cannot (YouTube refuses a window narrower than a year there), so its rows are
+  // cut to the window by date, as every row is.
+  searches: (query, deep, w): SearchStep[] => {
     const pages = deep ? 3 : 1;
-    const out: SearchStep[] = [
-      { stage: "videos", endpoint: "youtube/search", params: { query, max_pages: pages }, pages },
+    const upload = youtubeUploadDate(w);
+    return [
+      { stage: "videos", endpoint: "youtube/search", params: { query, ...(upload ? { uploadDate: upload } : {}), max_pages: pages }, pages },
       { stage: "shorts", endpoint: "youtube/search", params: { query, type: "shorts", max_pages: pages }, pages },
     ];
-    if (deep) out.push({ stage: "this-month", endpoint: "youtube/search", params: { query, uploadDate: "this_month", max_pages: pages }, pages });
-    return out;
   },
   floorViews: 1_000,
   enrich,

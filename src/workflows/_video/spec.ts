@@ -5,6 +5,7 @@
 import type { Platform, ResponseRecord, Row } from "../../engine/index.ts";
 import type { Params } from "../../kit/kit.ts";
 import type { Session } from "../../kit/record.ts";
+import type { Window } from "./window.ts";
 
 export interface SearchStep {
   /** A short name for the stage line: "search:top". */
@@ -13,6 +14,8 @@ export interface SearchStep {
   /** Without the topic filter, which run.ts adds to every search. Always with max_pages. */
   params: Params;
   pages: number;
+  /** Credits a page may hold beyond its price and the topic filter (Instagram include=engagement: 1 a reel, at most 30). */
+  extraPerPage?: number;
 }
 
 export interface Depth<T> {
@@ -40,7 +43,7 @@ export interface VideoSpec {
   accountNoun: string;
   defaultBudget: number;
   deepBudget: number;
-  searches(query: string, deep: boolean): SearchStep[];
+  searches(query: string, deep: boolean, window: Window): SearchStep[];
   /** Candidates at or above this many views are measured; the rest are counted. */
   floorViews: number;
   /**

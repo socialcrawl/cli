@@ -84,6 +84,19 @@ describe("youtube-marketing: the run", () => {
     assert.ok(first.includes("V1aaaaaaaaa") && first.includes("S1aaaaaaaaa"), "the most viewed are in the first batch");
   });
 
+  it("windows the video search to this month, cuts Shorts by date, and leaves an old Short out", async () => {
+    const OLDS = yt({ id: "OLDshort001", author: null, channel: "UCa", views: 900_000, at: "2023-09-26T02:52:48Z", type: "short" });
+    const routes = world().map((r) => (r.endpoint === "youtube/search" && r.when?.({ type: "shorts" }, undefined) ? { ...r, data: { items: [S1, S2, OLDS] } } : r));
+    const { kit, session } = fakeSession(routes);
+    const run = await runVideo(session, YOUTUBE, ARGS);
+    const videos = kit.sent.find((s) => s.endpoint === "youtube/search" && s.params.type === undefined);
+    const shorts = kit.sent.find((s) => s.endpoint === "youtube/search" && s.params.type === "shorts");
+    assert.equal(videos?.params.uploadDate, "this_month");
+    assert.equal(shorts?.params.uploadDate, undefined, "YouTube refuses a window narrower than a year on Shorts");
+    assert.equal(run.candidates.outsideWindow, 1);
+    assert.ok(!run.items.some((i) => i.row.id === "OLDshort001"));
+  });
+
   it("baselines Shorts on the Shorts shelf and long videos on the Videos tab", async () => {
     const { kit, session } = fakeSession(world());
     const run = await runVideo(session, YOUTUBE, ARGS);

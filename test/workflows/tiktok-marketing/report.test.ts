@@ -7,7 +7,7 @@ import { describe, it } from "node:test";
 import { ENGINE_SECTIONS, renderCard, renderReport, validateReport } from "../../../src/engine/index.ts";
 import { REPORT_SECTIONS, times } from "../../../src/workflows/_video/report.ts";
 import { workflow } from "../../../src/workflows/tiktok-marketing/index.ts";
-import { fakeSession } from "../_video/fake-kit.ts";
+import { fakeSession, post } from "../_video/fake-kit.ts";
 import { A1, ARGS, B1, labelled, world } from "./world.ts";
 
 async function result(budget = 60) {
@@ -71,6 +71,23 @@ describe("tiktok-marketing: the report", () => {
     assert.match(md, /Is it free - or paid\?/);
   });
 
+  it("states the window in its first line and dates every break-out", async () => {
+    const { md } = await result();
+    const first = md.split("\n").find((l, i) => i > 0 && l.trim());
+    assert.match(first ?? "", /^TikTok · 29\/10\/2026 to 27\/11\/2026 · /);
+    assert.ok(md.includes("| Published |"), "a Published column");
+    assert.match(md, /\| @bigco \| 20\/11\/2026 \|/);
+  });
+
+  it("counts the posts outside the window and gives the all-time command", async () => {
+    const OLD = post({ id: "O1", author: "oldie", followers: 40_000, views: 900_000, at: "2026-09-01T12:00:00Z" });
+    const routes = world().map((r) => (r.endpoint === "tiktok/search" && r.when?.({}, undefined) ? { ...r, data: { items: [A1, B1, OLD] } } : r));
+    const { session } = fakeSession(routes);
+    const md = renderReport((await workflow.run(session, ARGS)).report);
+    assert.match(md, /1 video published outside 29\/10\/2026 to 27\/11\/2026/);
+    assert.match(md, /--since 2000-01-01/);
+  });
+
   it("says what it could not read, with the reason", async () => {
     const { md } = await result();
     assert.match(md, /no list of who shared/i);
@@ -109,6 +126,7 @@ describe("tiktok-marketing: the card and the data", () => {
     for (const h of out.card.headlines) assert.ok(h.length <= 110, h);
     assert.equal(out.card.headlines[0], "3 videos broke out at 3x or more their creator's usual views (4 of 4 measured)");
     assert.match(card, /Read with SocialCrawl \/tiktok-marketing/);
+    assert.equal(out.card.basis, "5 videos read, 29/10 to 27/11/2026, 4 measured", "the card says when, since it travels without its report");
     assert.equal(out.card.rerun, 'npx -y socialcrawl@latest tiktok-marketing "AI coding tools"');
   });
 

@@ -11,6 +11,7 @@ import type { WorkflowArgs } from "../types.ts";
 import { ASK_CLASSES, ASK_LABEL } from "./comments.ts";
 import { hookOf, hourUtc, traitsOf } from "./features.ts";
 import { accountLabel, mayName, NAME_MIN_FOLLOWERS } from "./naming.ts";
+import { dmy } from "./window.ts";
 import type { VideoItem, VideoRun } from "./run.ts";
 import type { VideoSpec } from "./spec.ts";
 
@@ -65,7 +66,6 @@ export function videoResult(spec: VideoSpec, run: VideoRun, session: Session, ar
   // The dates a baseline covers: an old base under a new hit reads differently from last week's.
   const published = new Map<string, string>();
   for (const b of run.baselines) for (const r of b.rows) if (r.publishedAt) published.set(r.id, r.publishedAt);
-  const dmy = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
   const spanOf = (i: VideoItem) => {
     const d = i.breakout.peerIds.map((id) => published.get(id)).filter((x): x is string => Boolean(x)).sort();
     if (!d.length) return "";
@@ -150,6 +150,9 @@ export function videoResult(spec: VideoSpec, run: VideoRun, session: Session, ar
 
   // ── Unverified ──
   ev.unknown({ what: `Who shared each ${P}`, why: `${spec.label} has no list of who shared a ${P}, so amplifiers are not read` });
+  const span = `${dmy(run.window.since)} to ${dmy(run.window.until)}`;
+  if (run.candidates.outsideWindow && !run.window.allTime)
+    ev.unknown({ what: `${n(run.candidates.outsideWindow)} ${plural(run.candidates.outsideWindow, P)} published outside ${span}`, why: "older posts are outside the window this run reads", check: `socialcrawl ${spec.workflow} "${run.query}" --since 2000-01-01 (all time)` });
   if (run.candidates.belowFloor) ev.unknown({ what: `${n(run.candidates.belowFloor)} ${plural(run.candidates.belowFloor, P)} under the reach floor`, why: `under ${n(spec.floorViews)} views, so not measured` });
   if (run.candidates.noViews) ev.unknown({ what: `${n(run.candidates.noViews)} ${plural(run.candidates.noViews, P)} with no view count`, why: "the platform returned none; unknown, not zero" });
   const reasons: Record<string, string> = { below_top_n: `outside the ${A}s chosen for a baseline at this depth`, budget: "the stage's share of the budget ran out", error: "the baseline read failed (kept in responses.jsonl)", no_id: `the row has no ${A} id to read` };
@@ -166,6 +169,7 @@ export function videoResult(spec: VideoSpec, run: VideoRun, session: Session, ar
   const brokeRows = viral.slice(0, TOP_ROWS).map((i, k) => [
     String(k + 1),
     label(i.row),
+    i.row.publishedAt ? dmy(i.row.publishedAt) : "unknown",
     times(i.breakout.multiple),
     n(i.breakout.value ?? 0),
     `median of ${n(i.breakout.base ?? 0)} views over ${i.breakout.peers} earlier ${P}s${spanOf(i)}${i.breakout.settling ? ", still rising" : ""}`,
@@ -181,7 +185,7 @@ export function videoResult(spec: VideoSpec, run: VideoRun, session: Session, ar
         : measured.length
           ? `None of the ${measured.length} ${P}s with a baseline reached ${BANDS.beat} times its ${A}'s usual views [${F1.id}].`
           : `No ${P} could be measured: the searches found no candidate above the floor with a baseline [${F1.id}].`,
-      brokeRows.length ? "\n" + table(["#", "Account", "× its usual views", "Views", "Baseline", "Length", "Hook", "Link"], brokeRows) : "",
+      brokeRows.length ? "\n" + table(["#", "Account", "Published", "× its usual views", "Views", "Baseline", "Length", "Hook", "Link"], brokeRows) : "",
       flagged.length ? "\n" + flagged.map((i) => `- ${label(i.row)}: ${FLAG_LABEL[i.flag!.flag!]} [${itemFinding.get(i.row.id) ?? F1.id}].`).join("\n") : "",
     ].join("\n"),
   });
@@ -294,13 +298,13 @@ export function videoResult(spec: VideoSpec, run: VideoRun, session: Session, ar
   if (lead) summary.push(`The largest: ${label(lead.row)}, ${times(lead.breakout.multiple)} over ${lead.breakout.peers} earlier ${P}s [${itemFinding.get(lead.row.id)}].`);
   if (topTrait) summary.push(`${topTrait.v} of ${viral.length} break-outs share the ${topTrait.trait} \`${topTrait.value}\` [${FT.id}].`);
   if (FC) summary.push(`${asks.classes.question.count} questions and ${asks.classes.complaint.count} complaints in ${asks.read} comments read [${FC.id}].`);
-  if (run.unread.length) summary.push(`${run.unread.length} candidates had no baseline read; see What we could not verify [${F1.id}].`);
+  if (run.unread.length) summary.push(`${run.unread.length} ${run.unread.length === 1 ? "candidate" : "candidates"} had no baseline read; see What we could not verify [${F1.id}].`);
 
   const card: CardInput = {
     command: `/${spec.workflow} "${run.query}"`,
     skill: spec.workflow,
     headlines: cardHeadlines(spec, run, viral, label, asks.classes.question.count, topTrait),
-    basis: `${n(run.candidates.read)} ${P}s read, ${n(measured.length)} measured`,
+    basis: `${n(run.candidates.read)} ${P}s read, ${run.window.allTime ? "all time" : `${run.window.since.slice(0, 4) === run.window.until.slice(0, 4) ? dmy(run.window.since).slice(0, 5) : dmy(run.window.since)} to ${dmy(run.window.until)}`}, ${n(measured.length)} measured`,
     meta,
     rerun: `npx -y socialcrawl@latest ${spec.workflow} "${run.query}"`,
   };
@@ -308,7 +312,7 @@ export function videoResult(spec: VideoSpec, run: VideoRun, session: Session, ar
   const report: ReportInput = {
     command: card.command,
     skill: spec.workflow,
-    badge: `${spec.label} · topic filter: \`${run.topic}\` · ${run.candidates.read} ${P}s read · ${run.deep ? "deep" : "default"} run`,
+    badge: `${spec.label} · ${run.window.allTime ? `all time to ${dmy(run.window.until)}` : `${dmy(run.window.since)} to ${dmy(run.window.until)}`} · topic filter: \`${run.topic}\` · ${run.candidates.read} ${P}s read · ${run.deep ? "deep" : "default"} run`,
     summary,
     sections,
     evidence: ev,

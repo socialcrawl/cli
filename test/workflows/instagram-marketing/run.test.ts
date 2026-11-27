@@ -84,8 +84,8 @@ describe("instagram-marketing: the run", () => {
   });
 
   it("counts as measured only the reels that got a multiple, and says how many had too few earlier reels", async () => {
-    // An old reel: the creator's newest reels are all after it, so no earlier reel is on the page.
-    const R4 = reel({ id: "R4", author: "oldtimer", views: 500_000, at: "2026-06-01T10:00:00Z" });
+    // A reel from 01/11: the creator's 24 newest reels all came after it, so none is earlier.
+    const R4 = reel({ id: "R4", author: "oldtimer", views: 500_000, at: "2026-11-01T10:00:00Z" });
     const routes = world().map((r) => (r.endpoint === "instagram/search/reels" ? { ...r, data: { items: [R1, R2, R3, R4] } } : r));
     routes.push({ endpoint: "instagram/profile/reels", when: (p) => p.handle === "oldtimer", data: { items: history("oldtimer", 24, 9_000, "2026-11-26T00:00:00Z", { ext: { media_type: "video" } }) } });
     routes.push({ endpoint: "instagram/profile", when: (p) => p.handle === "oldtimer", data: { author: { username: "oldtimer", followers: 1_000 } } });
@@ -100,22 +100,23 @@ describe("instagram-marketing: the run", () => {
     const routes = world().map((r) => (r.endpoint === "instagram/search/reels" ? { ...r, data: { items: [R1, R2, R3, R4] } } : r));
     routes.push({ endpoint: "instagram/profile", when: (p) => p.handle === "oldtimer", data: { author: { username: "oldtimer", followers: 1_000 } } });
     const { kit, session } = fakeSession(routes);
-    await runVideo(session, { ...INSTAGRAM, confirm: { default: 1, deep: 1 } }, ARGS);
+    // All time, so the old reel is a candidate at all.
+    await runVideo(session, { ...INSTAGRAM, confirm: { default: 1, deep: 1 } }, { ...ARGS, since: "2000-01-01" });
     const read = kit.sent.filter((s) => s.endpoint === "instagram/profile/reels").map((s) => s.params.handle);
     assert.deepEqual(read, ["smalldev"], "500 views per follower, but six months old, so read after the recent ones");
   });
 
   it("walks back page by page until a busy creator's baseline holds 8 reels before the candidate", async () => {
-    // One reel a day: the 24 newest reach 03/11, the next page 22/10, the one after 10/10.
+    // One reel a day: the 24 newest reach 03/11, the next two pages 6 reels each (to 28/10, then 22/10).
     const day = (d: number) => new Date(Date.parse("2026-11-27T09:00:00Z") - d * 86_400_000).toISOString();
     const busy = (from: number, n: number) => Array.from({ length: n }, (_, i) => reel({ id: `b${from + i}`, author: "busy", views: 4_000, at: day(from + i) }));
-    const R5 = reel({ id: "R5", author: "busy", views: 80_000, at: "2026-10-25T12:00:00Z" });
+    const R5 = reel({ id: "R5", author: "busy", views: 80_000, at: "2026-10-30T12:00:00Z" });
     const routes: Route[] = [
       { endpoint: "instagram/search/reels", data: { items: [R5] } },
       { endpoint: "instagram/profile", data: { author: { username: "busy", followers: 2_000 } } },
       { endpoint: "instagram/profile/reels", when: (p) => p.cursor === undefined, data: { items: busy(1, 24), $pagination: { has_more: true, next_cursor: "k1" } } },
-      { endpoint: "instagram/profile/reels", when: (p) => p.cursor === "k1", data: { items: busy(25, 12), $pagination: { has_more: true, next_cursor: "k2" } } },
-      { endpoint: "instagram/profile/reels", when: (p) => p.cursor === "k2", data: { items: busy(37, 12), $pagination: { has_more: true, next_cursor: "k3" } } },
+      { endpoint: "instagram/profile/reels", when: (p) => p.cursor === "k1", data: { items: busy(25, 6), $pagination: { has_more: true, next_cursor: "k2" } } },
+      { endpoint: "instagram/profile/reels", when: (p) => p.cursor === "k2", data: { items: busy(31, 6), $pagination: { has_more: true, next_cursor: "k3" } } },
     ];
     const { kit, session } = fakeSession(routes);
     const run = await runVideo(session, INSTAGRAM, ARGS);
@@ -133,6 +134,35 @@ describe("instagram-marketing: the run", () => {
     const run = await runVideo(session, INSTAGRAM, ARGS);
     assert.deepEqual(run.items.find((i) => i.row.id === "R1")?.row.sound, { id: "m9", title: "Viral Song", original: null });
     assert.equal(run.items.find((i) => i.row.id === "R1")?.breakout.multiple, 50, "the reel itself is still left out of its own baseline");
+  });
+
+  it("cuts the undated search to the window by default, and searches the dated surface with views on --deep", async () => {
+    const { kit, session } = fakeSession(world(), 250);
+    await runVideo(session, INSTAGRAM, { ...ARGS, deep: true });
+    const deep = kit.sent.find((s) => s.endpoint === "instagram/search/reels" && s.params.date_posted !== undefined);
+    assert.equal(deep?.params.date_posted, "last-month");
+    assert.equal(deep?.params.include, "engagement", "a dated search carries no views without it (SR-40)");
+    const R6 = reel({ id: "R6", author: "lastyear", views: 700_000, at: "2025-12-01T10:00:00Z" });
+    const routes = world().map((r) => (r.endpoint === "instagram/search/reels" ? { ...r, data: { items: [R1, R2, R3, R6] } } : r));
+    const d = fakeSession(routes);
+    const run = await runVideo(d.session, INSTAGRAM, ARGS);
+    assert.equal(run.candidates.outsideWindow, 1);
+  });
+
+  it("reads the size of a break-out's creator before describing it", async () => {
+    // Three break-outs whose creators were not among the most viewed: each is read after ranking.
+    const spec = { ...INSTAGRAM, names: { ...INSTAGRAM.names!, preRead: { default: 0, deep: 0 } } };
+    const { kit, session } = fakeSession(world());
+    const out = await (await import("../../../src/workflows/_video/workflow.ts")).videoWorkflow(spec, { summary: "", examples: [] }).run(session, ARGS);
+    assert.deepEqual(kit.sent.filter((s) => s.endpoint === "instagram/profile").map((s) => s.params.handle).sort(), ["bigbrand", "smalldev"]);
+    assert.doesNotMatch(renderReport(out.report), /a creator of unknown size/);
+  });
+
+  it("says '1 candidate had' when one went unread", async () => {
+    const spec = { ...INSTAGRAM, confirm: { default: 2, deep: 2 } };
+    const { session } = fakeSession(world());
+    const out = await (await import("../../../src/workflows/_video/workflow.ts")).videoWorkflow(spec, { summary: "", examples: [] }).run(session, ARGS);
+    assert.ok(out.report.summary.some((l) => l.startsWith("1 candidate had no baseline read")), JSON.stringify(out.report.summary));
   });
 
   it("says 'its' for a single break-out", async () => {
