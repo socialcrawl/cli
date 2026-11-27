@@ -1,6 +1,6 @@
 {
   "name": "socialcrawl",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Sign in to SocialCrawl once, install its workflows into your coding agents, and run them from a terminal: viral posts, marketing reads and teardowns across X, TikTok, Instagram, YouTube, Reddit and LinkedIn.",
   "type": "module",
   "bin": {
