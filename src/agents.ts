@@ -49,9 +49,24 @@ export function installTargets(agents: Agent[], o: { home: string; project: stri
 }
 
 const WORKFLOWS_SOURCE = "source: https://github.com/socialcrawl/workflows";
-/** Skill folders an earlier release installed and this one no longer ships. 0.1.0's router was
- * called socialcrawl, the name of the API skill in socialcrawl/skills. */
-const RETIRED = ["socialcrawl"];
+/** Skill folders 0.1.0 installed and this release no longer ships. Its router was called
+ * socialcrawl, the API skill's name; the workflow skills have been socialcrawl-<task> since. */
+const RETIRED = [
+  "socialcrawl",
+  "social-viral",
+  "social-pulse",
+  "social-presence",
+  "social-teardown",
+  "video-teardown",
+  "reddit-marketing",
+  "x-marketing",
+  "tiktok-marketing",
+  "instagram-marketing",
+  "youtube-marketing",
+  "linkedin-marketing",
+  "competitor-research",
+  "post-tracker",
+];
 
 /** Whether the skill folder at `dir` was installed from socialcrawl/workflows. */
 function ours(dir: string): boolean {

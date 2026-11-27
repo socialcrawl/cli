@@ -5,7 +5,8 @@ Changes to the `socialcrawl` package. Dates are DD/MM/YYYY. A release is publish
 ## 0.1.1 (unreleased)
 
 - `socialcrawl init` never replaces a skill it did not install. A skill of the same name from somewhere else, such as the SocialCrawl API skill (`socialcrawl`, from socialcrawl/skills), is left as it was and named in the output.
-- The router skill is now `socialcrawl-workflows`. `init` removes the `socialcrawl` router folder that 0.1.0 installed, and only that one.
+- Every workflow skill is named `socialcrawl-<task>`: `socialcrawl-workflows` (the router), `socialcrawl-viral`, `socialcrawl-pulse`, `socialcrawl-presence`, `socialcrawl-teardown`, `socialcrawl-video-teardown`, `socialcrawl-reddit-marketing`, `socialcrawl-x-marketing`, `socialcrawl-tiktok-marketing`, `socialcrawl-instagram-marketing`, `socialcrawl-youtube-marketing`, `socialcrawl-linkedin-marketing`, `socialcrawl-competitor-research` and `socialcrawl-post-tracker`. The CLI commands keep their names.
+- `init` removes the folders 0.1.0 installed under the old names, only when 0.1.0 put them there. If that included the `socialcrawl` router, it prints how to get the API skill back.
 
 ## 0.1.0 (27/11/2026)
 

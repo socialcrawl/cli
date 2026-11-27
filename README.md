@@ -6,11 +6,13 @@ socialcrawl runs social media research from your terminal or your coding agent. 
 npx -y socialcrawl@latest init
 ```
 
+To add the workflow skills to your agents without the CLI, run `npx skills add socialcrawl/workflows`. Each skill is named `socialcrawl-<task>` and runs one command here: `socialcrawl-viral` runs `socialcrawl social-viral`, and the [workflows README](https://github.com/socialcrawl/workflows#skills) pairs the rest.
+
 ## What `init` does
 
 1. Uses `SOCIALCRAWL_API_KEY` or a key you saved before. If there is none, it asks you to paste a key, or to press Enter and sign in by email with a link and a 6-digit code (a free key with 100 credits, no card).
 2. Checks the key with a free balance read before it saves it to `~/.socialcrawl/config.json`, never into a project folder.
-3. Finds the coding agents on your machine (Claude Code, Cursor, Codex, Gemini CLI, GitHub Copilot) and installs the workflows from [socialcrawl/workflows](https://github.com/socialcrawl/workflows) into each one. It never replaces a skill it did not install, so the [SocialCrawl API skill](https://github.com/socialcrawl/skills) and the [MCP server](https://github.com/socialcrawl/mcp) keep working beside the workflows, on the same account.
+3. Finds the coding agents on your machine (Claude Code, Cursor, Codex, Gemini CLI, GitHub Copilot) and installs the workflows from [socialcrawl/workflows](https://github.com/socialcrawl/workflows) into each one. It never replaces a skill it did not install, and it removes the folders 0.1.0 installed under the old names only when 0.1.0 put them there. So the [SocialCrawl API skill](https://github.com/socialcrawl/skills) and the [MCP server](https://github.com/socialcrawl/mcp) keep working beside the workflows, on the same account.
 
 Then ask your agent "what went viral about AI coding tools this week?", or run a workflow yourself:
 
@@ -22,19 +24,19 @@ socialcrawl social-viral "AI coding tools"
 
 | Workflow | Give it | Default run, measured | At most |
 | --- | --- | --- | --- |
-| [`social-viral`](https://github.com/socialcrawl/workflows/tree/main/skills/social-viral) | a topic | 61 credits | 100 |
-| [`social-pulse`](https://github.com/socialcrawl/workflows/tree/main/skills/social-pulse) | a brand or topic | 43 credits | 100 |
-| [`social-presence`](https://github.com/socialcrawl/workflows/tree/main/skills/social-presence) | a brand or public figure, and its website | 23 credits | 43 |
-| [`linkedin-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/linkedin-marketing) | a keyword | 48 credits | 74 |
-| [`tiktok-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/tiktok-marketing) | a keyword | 38 credits | 55 |
-| [`instagram-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/instagram-marketing) | a keyword | 39 credits | 60 |
-| [`youtube-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/youtube-marketing) | a keyword | 34 credits | 49 |
-| [`x-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/x-marketing) | a keyword | 36 credits | 55 |
-| [`competitor-research`](https://github.com/socialcrawl/workflows/tree/main/skills/competitor-research) | two to five brands | 48 credits | 100 |
-| [`post-tracker`](https://github.com/socialcrawl/workflows/tree/main/skills/post-tracker) | a post link | 2 to 5 credits, then 1 a reading | 10 |
-| [`video-teardown`](https://github.com/socialcrawl/workflows/tree/main/skills/video-teardown) | a TikTok, YouTube, Instagram or X video link | 7 to 29 credits, by platform | 60 |
-| [`social-teardown`](https://github.com/socialcrawl/workflows/tree/main/skills/social-teardown) | an account, or several handles of one brand | 77 credits | 100 |
-| [`reddit-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/reddit-marketing) | a keyword | 28 credits | 38 |
+| [`social-viral`](https://github.com/socialcrawl/workflows/tree/main/skills/socialcrawl-viral) | a topic | 61 credits | 100 |
+| [`social-pulse`](https://github.com/socialcrawl/workflows/tree/main/skills/socialcrawl-pulse) | a brand or topic | 43 credits | 100 |
+| [`social-presence`](https://github.com/socialcrawl/workflows/tree/main/skills/socialcrawl-presence) | a brand or public figure, and its website | 23 credits | 43 |
+| [`linkedin-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/socialcrawl-linkedin-marketing) | a keyword | 48 credits | 74 |
+| [`tiktok-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/socialcrawl-tiktok-marketing) | a keyword | 38 credits | 55 |
+| [`instagram-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/socialcrawl-instagram-marketing) | a keyword | 39 credits | 60 |
+| [`youtube-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/socialcrawl-youtube-marketing) | a keyword | 34 credits | 49 |
+| [`x-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/socialcrawl-x-marketing) | a keyword | 36 credits | 55 |
+| [`competitor-research`](https://github.com/socialcrawl/workflows/tree/main/skills/socialcrawl-competitor-research) | two to five brands | 48 credits | 100 |
+| [`post-tracker`](https://github.com/socialcrawl/workflows/tree/main/skills/socialcrawl-post-tracker) | a post link | 2 to 5 credits, then 1 a reading | 10 |
+| [`video-teardown`](https://github.com/socialcrawl/workflows/tree/main/skills/socialcrawl-video-teardown) | a TikTok, YouTube, Instagram or X video link | 7 to 29 credits, by platform | 60 |
+| [`social-teardown`](https://github.com/socialcrawl/workflows/tree/main/skills/socialcrawl-teardown) | an account, or several handles of one brand | 77 credits | 100 |
+| [`reddit-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/socialcrawl-reddit-marketing) | a keyword | 28 credits | 38 |
 
 Each was measured once on 27/11/2026 with nothing cached (on "AI coding tools", "Notion" for social-pulse, "Linear" for social-presence, "Supabase, Firebase, Neon" for competitor-research, one YouTube video for post-tracker, one video per platform for video-teardown, "@notionhq" for social-teardown, "headless CMS" for reddit-marketing); each workflow's page gives its request ids. Every default run fits in the 100 credits a new account starts with. `socialcrawl --help` lists the workflows your version has.
 

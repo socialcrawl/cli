@@ -14,8 +14,8 @@ const json = (status: number, body: unknown) => new Response(JSON.stringify(body
 
 function skillsDir() {
   const d = temp("sc-skills-");
-  mkdirSync(path.join(d, "social-viral"));
-  writeFileSync(path.join(d, "social-viral", "SKILL.md"), "---\nname: social-viral\n---\n");
+  mkdirSync(path.join(d, "socialcrawl-viral"));
+  writeFileSync(path.join(d, "socialcrawl-viral", "SKILL.md"), "---\nname: socialcrawl-viral\n---\n");
   return d;
 }
 
@@ -198,8 +198,8 @@ describe("init: the agents", () => {
     mkdirSync(path.join(home, ".codex"));
     assert.equal(await runInit(d, { yes: false, install: true, project: false }), EXIT.ok);
     assert.equal(asked.length, 0);
-    assert.ok(existsSync(path.join(home, ".claude", "skills", "social-viral", "SKILL.md")));
-    assert.ok(existsSync(path.join(home, ".agents", "skills", "social-viral", "SKILL.md")));
+    assert.ok(existsSync(path.join(home, ".claude", "skills", "socialcrawl-viral", "SKILL.md")));
+    assert.ok(existsSync(path.join(home, ".agents", "skills", "socialcrawl-viral", "SKILL.md")));
     assert.deepEqual(readConfig(home).installed, ["claude-code", "codex"]);
     assert.ok(out.some((l) => l.includes("Claude Code")));
   });
@@ -207,11 +207,11 @@ describe("init: the agents", () => {
   it("keeps someone else's skill of the same name, and says so", async () => {
     const { d, out, home } = deps();
     saveConfig(home, { apiKey: "sc_Good_notarealkey1234" });
-    mkdirSync(path.join(home, ".claude", "skills", "social-viral"), { recursive: true });
-    writeFileSync(path.join(home, ".claude", "skills", "social-viral", "SKILL.md"), "mine");
+    mkdirSync(path.join(home, ".claude", "skills", "socialcrawl-viral"), { recursive: true });
+    writeFileSync(path.join(home, ".claude", "skills", "socialcrawl-viral", "SKILL.md"), "mine");
     await runInit(d, { yes: false, install: true, project: false });
-    assert.equal(readFileSync(path.join(home, ".claude", "skills", "social-viral", "SKILL.md"), "utf8"), "mine");
-    assert.ok(out.some((l) => /social-viral as it was/.test(l)), out.join("\n"));
+    assert.equal(readFileSync(path.join(home, ".claude", "skills", "socialcrawl-viral", "SKILL.md"), "utf8"), "mine");
+    assert.ok(out.some((l) => /socialcrawl-viral as it was/.test(l)), out.join("\n"));
   });
 
   it("removes the router 0.1.0 installed as socialcrawl, and says how to get the API skill back", async () => {
@@ -222,6 +222,17 @@ describe("init: the agents", () => {
     await runInit(d, { yes: false, install: true, project: false });
     assert.ok(!existsSync(path.join(home, ".claude", "skills", "socialcrawl")));
     assert.ok(out.some((l) => l.includes("npx skills add socialcrawl/skills -g")), out.join("\n"));
+  });
+
+  it("names the old workflow skills it removed, and leaves the API skill out of it when it was not touched", async () => {
+    const { d, out, home } = deps();
+    saveConfig(home, { apiKey: "sc_Good_notarealkey1234" });
+    mkdirSync(path.join(home, ".claude", "skills", "social-viral"), { recursive: true });
+    writeFileSync(path.join(home, ".claude", "skills", "social-viral", "SKILL.md"), "---\nname: social-viral\nmetadata:\n  source: https://github.com/socialcrawl/workflows\n---\n");
+    await runInit(d, { yes: false, install: true, project: false });
+    assert.ok(!existsSync(path.join(home, ".claude", "skills", "social-viral")));
+    assert.ok(out.some((l) => l.includes("social-viral") && l.includes("socialcrawl-<task>")), out.join("\n"));
+    assert.ok(!out.some((l) => l.includes("socialcrawl/skills")), out.join("\n"));
   });
 
   it("says so when it finds no agent, and points at the terminal commands", async () => {

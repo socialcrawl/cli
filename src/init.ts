@@ -174,10 +174,8 @@ export async function runInit(deps: InitDeps, opts: InitOptions): Promise<number
           const r = installSkills(source, t.dir);
           deps.out(`Installed ${r.installed.length} workflow${r.installed.length === 1 ? "" : "s"} for ${t.agents.join(", ")} in ${t.dir}.`);
           for (const n of r.kept) deps.out(`Left ${path.join(t.dir, n)} as it was: a skill of that name from somewhere else is already there.`);
-          if (r.removed.length) {
-            deps.out(`Removed the old router skill (${r.removed.join(", ")}); it is socialcrawl-workflows now.`);
-            deps.out("If you used the SocialCrawl API skill, version 0.1.0 replaced it. Get it back with: npx skills add socialcrawl/skills -g");
-          }
+          if (r.removed.length) deps.out(`Removed the skills 0.1.0 installed under their old names (${r.removed.join(", ")}). They are socialcrawl-<task> now.`);
+          if (r.removed.includes("socialcrawl")) deps.out("If you used the SocialCrawl API skill, version 0.1.0 replaced it. Get it back with: npx skills add socialcrawl/skills -g");
         }
         saveConfig(deps.home, { installed: agents.map((a) => a.id) });
         installedFor = agents.length;
