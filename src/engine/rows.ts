@@ -31,6 +31,12 @@ export interface Row {
   kind: RowKind;
   /** The request that returned this row; every finding about it cites this id. */
   requestId: string | null;
+  /** Hashtags parsed from the caption (`ext.hashtags`); absent when the response gives none. */
+  hashtags?: string[];
+  /** The sound a video uses (TikTok `music_*`, Instagram `ext.music`); `original` is the creator's own sound, null when unknown. Absent when the response gives none. */
+  sound?: { id: string | null; title: string | null; original: boolean | null };
+  /** YouTube only: a Short or a regular upload, from `ext.content_type`. Shorts are compared only with Shorts. Absent when unknown. */
+  format?: "short" | "long";
 }
 
 /** The slice of a stored call the engine reads (the prototype's CallRecord fits). */
@@ -90,7 +96,15 @@ export function rowOf(post: any, platform: Platform, requestId: string | null): 
   const text = String(post.content?.text ?? "");
   const ext = post.ext ?? {};
   const e = post.engagement ?? {};
+  const extras: Pick<Row, "hashtags" | "sound" | "format"> = {};
+  if (Array.isArray(ext.hashtags)) extras.hashtags = ext.hashtags.filter((h: unknown): h is string => typeof h === "string");
+  const soundId = str(ext.music_id) ?? str(ext.music?.id);
+  const soundTitle = str(ext.music_title) ?? str(ext.music?.track_title);
+  if (soundId || soundTitle) extras.sound = { id: soundId, title: soundTitle, original: typeof ext.music_is_original === "boolean" ? ext.music_is_original : null };
+  if (platform === "youtube" && ext.content_type === "short") extras.format = "short";
+  else if (platform === "youtube" && ext.content_type === "video") extras.format = "long";
   return {
+    ...extras,
     platform,
     id: String(post.id),
     url: str(post.url),

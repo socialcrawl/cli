@@ -100,12 +100,17 @@ export function isComparableKind(r: Row): boolean {
  * votes belong to the community, so the baseline is the community's (study file 18).
  */
 export function baselineKey(r: Row): string {
+  // YouTube lanes print the channel differently (search "@handle", channel/shorts the channel
+  // id, the batch lookup nothing), so a YouTube row with a channel id is keyed on it.
+  if (r.platform === "youtube" && r.channelId) return `yt:${r.channelId}`.toLowerCase();
   return (r.platform === "reddit" ? `r/${r.community ?? ""}` : r.author).toLowerCase();
 }
 
 /** Same author (or community), and videos with videos, everything else with everything else (not on Reddit). */
 export function comparable(a: Row, b: Row): boolean {
   if (a.platform !== b.platform || baselineKey(a) !== baselineKey(b) || !isComparableKind(b)) return false;
+  // Shorts with Shorts, long videos with long videos, where both rows say which they are.
+  if (a.format && b.format && a.format !== b.format) return false;
   return a.platform === "reddit" || a.video === b.video;
 }
 
