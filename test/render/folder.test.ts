@@ -55,7 +55,8 @@ describe("terminalSummary", () => {
   });
   it("says what was not read, the cost and where the report is", () => {
     const text = lines.join("\n");
-    assert.ok(/Not read: 1 call/.test(text), text);
+    assert.ok(/Not read: 1 call \(budget\)/.test(text), text);
+    assert.ok(/Not verified: 1 item/.test(text), text);
     assert.ok(text.includes("59 credits"));
     assert.ok(text.includes(path.join("socialcrawl-runs/social-viral-ai-coding-tools-2026-11-27", "report.html")));
   });

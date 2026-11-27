@@ -61,6 +61,14 @@ export function mdToHtml(md: string, refs: Set<string> = new Set()): string {
       out.push("<hr>");
       continue;
     }
+    if (/^\s*>/.test(line)) {
+      flush();
+      const quoted: string[] = [];
+      while (i < lines.length && /^\s*>/.test(lines[i])) quoted.push(lines[i++].replace(/^\s*>\s?/, "").trim());
+      i--;
+      out.push(`<blockquote><p>${inline(quoted.filter(Boolean).join(" "), refs)}</p></blockquote>`);
+      continue;
+    }
     if (line.trim().startsWith("|") && TABLE_RULE.test(lines[i + 1] ?? "")) {
       flush();
       const head = cells(line);

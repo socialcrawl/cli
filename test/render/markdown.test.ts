@@ -45,6 +45,12 @@ describe("mdToHtml", () => {
     assert.ok(html.includes("<code>socialcrawl social-viral</code>"));
   });
 
+  it("renders quoted lines as one blockquote", () => {
+    const html = mdToHtml(["Someone asked:", "", "> Which tool reads Reddit?", "> I need **one** that works", "", "After"].join("\n"));
+    assert.ok(html.includes("<blockquote><p>Which tool reads Reddit? I need <strong>one</strong> that works</p></blockquote>"), html);
+    assert.ok(html.includes("<p>After</p>"));
+  });
+
   it("renders a horizontal rule", () => {
     assert.ok(mdToHtml("a\n\n---\n\nb").includes("<hr>"));
   });

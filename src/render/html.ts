@@ -48,6 +48,8 @@ a.ref:hover{text-decoration:underline}
 .files{columns:2;font:13px/1.9 ${FONT_MONO}}
 .card{margin-top:16px;border:1px solid ${COLOR.line.css};border-radius:14px;overflow:hidden;max-width:600px}
 .card svg{display:block;width:100%;height:auto}
+blockquote{margin:16px 0;padding:2px 0 2px 16px;border-left:2px solid ${COLOR.line.css};color:${COLOR.ink2.css}}
+blockquote p{margin:0}
 hr{border:0;border-top:1px solid ${COLOR.line.css};margin:48px 0 16px}
 hr+p{font:13px/1.45 ${FONT_MONO};color:${COLOR.muted.css}}
 @media (max-width:640px){main{padding:32px 16px 64px}h1{font-size:30px}.files{columns:1}}

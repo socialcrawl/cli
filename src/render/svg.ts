@@ -50,7 +50,8 @@ export function barChartSvg(chart: BarChart, width = 720): string {
   const top = Math.max(...chart.bars.map((b) => b.value), 0);
   const plot = width - LABEL_W - VALUE_W;
   const height = chart.bars.length * (ROW + GAP) - GAP;
-  const unit = chart.unit ?? "";
+  // "2.8x" and "40%" sit on the number; a word unit gets a space: "9 comments".
+  const unit = chart.unit && /^[a-wyz]/i.test(chart.unit) ? ` ${chart.unit}` : chart.unit ?? "";
   const rows = chart.bars.map((b, i) => {
     const y = i * (ROW + GAP);
     const w = top > 0 ? Math.max(1, (b.value / top) * plot) : 1;

@@ -41,11 +41,17 @@ export function terminalSummary(run: RunOutput, dir: string): string[] {
   const failed = run.run.errors.length;
   const unknown = run.report.evidence.unverified.length;
   const gaps = [
-    notSent ? `${notSent} call${notSent === 1 ? "" : "s"} (${[...new Set(run.run.notRead.map((n) => n.reason))].join(", ")})` : "",
-    failed ? `${failed} call${failed === 1 ? "" : "s"} refused by the API` : "",
-    unknown ? `${unknown} count${unknown === 1 ? "" : "s"} the platforms do not give` : "",
+    notSent || failed
+      ? `Not read: ${[
+          notSent ? `${notSent} call${notSent === 1 ? "" : "s"} (${[...new Set(run.run.notRead.map((n) => n.reason))].join(", ")})` : "",
+          failed ? `${failed} call${failed === 1 ? "" : "s"} the API refused` : "",
+        ]
+          .filter(Boolean)
+          .join(", ")}.`
+      : "",
+    unknown ? `Not verified: ${unknown} item${unknown === 1 ? "" : "s"}.` : "",
   ].filter(Boolean);
-  if (gaps.length) lines.push(`Not read: ${gaps.join("; ")}. The report lists each one.`);
+  if (gaps.length) lines.push(`${gaps.join(" ")} The report lists each one.`);
   const m = run.report.meta;
   lines.push(`Cost: ${m.credits} credit${m.credits === 1 ? "" : "s"}, ${m.calls} calls, ${m.seconds} s.`);
   lines.push(`Report: ${path.join(dir, "report.html")}`);

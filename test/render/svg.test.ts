@@ -19,6 +19,11 @@ describe("barChartSvg", () => {
     assert.ok(svg.includes("<title>Acme: 41.3x (TikTok)</title>"));
   });
 
+  it("puts a space before a word unit, none before x", () => {
+    assert.ok(barChartSvg({ title: "T", unit: "comments", bars: [{ label: "a", value: 9 }] }).includes(">9 comments<"));
+    assert.ok(barChartSvg({ title: "T", unit: "%", bars: [{ label: "a", value: 9 }] }).includes(">9%<"));
+  });
+
   it("escapes labels", () => {
     const svg = barChartSvg({ title: "T", bars: [{ label: "Acme <b>", value: 1 }] });
     assert.ok(!svg.includes("<b>"));
