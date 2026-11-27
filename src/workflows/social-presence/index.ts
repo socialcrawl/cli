@@ -24,11 +24,11 @@ function inputOf(args: WorkflowArgs): PresenceInput {
   return { name: args.input, type, ...(website ? { website } : {}) };
 }
 
-/** The account as the report names it: the subject's own matches by handle; an unconfirmed one only from 10,000 followers. */
+/** The account as the report names it: a confirmed one by its handle; any other only from 10,000 followers or a verified badge, since a name search can find a namesake. */
 function nameOf(a: AccountRead): string {
   if (!a.handle) return "none";
   const handle = a.platform === "linkedin" || a.handle.startsWith("@") ? a.handle : `@${a.handle}`;
-  if (a.status === "confirmed" || a.status === "judged") return handle;
+  if (a.status === "confirmed") return handle;
   if (a.verified || (a.followers ?? 0) >= NAME_FLOOR) return handle;
   return a.followers === null ? "an account of unknown size" : `an account with ${n(a.followers)} followers`;
 }

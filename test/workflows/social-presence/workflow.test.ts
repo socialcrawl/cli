@@ -103,6 +103,16 @@ describe("social-presence: a whole run", () => {
     assert.ok(shown.includes("@acmenotes"));
   });
 
+  it("names an account judged without a link only from 10,000 followers or a verified badge", async () => {
+    const find = findBody([
+      platform("twitter", "acmenotes", "same", 0.97, { website_match: true, cross_link: true }, 120_000, true),
+      platform("instagram", "acme_namesake", "same", 0.8, { bio_consistent: true }, 900, true),
+    ]);
+    const md = (await runOnce(presenceApi(find))).read("report.md");
+    assert.ok(!md.includes("acme_namesake"));
+    assert.match(md, /an account with 900 followers/);
+  });
+
   it("says plainly when nothing is confirmed", async () => {
     const weak = findBody([platform("twitter", "acmenotes", "same", 0.9, { bio_consistent: true }, 120_000, true), platform("instagram", "acmeig", "possible", 0.6, {}, 300, false)]);
     const md = (await runOnce(presenceApi(weak))).read("report.md");
