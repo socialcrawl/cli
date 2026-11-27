@@ -174,3 +174,13 @@ describe("social-pulse: a whole run", () => {
     assert.ok(q.lines.some((l) => l.includes("21/11/2026 to 27/11/2026")));
   });
 });
+
+describe("social-pulse: the counts line", () => {
+  it("says one question, complaint, recommendation or post about switching in the singular", async () => {
+    const { asksLine } = await import("../../../src/workflows/social-pulse/index.ts");
+    const one = { question: 1, complaint: 1, recommendation: 1, switching: 1 };
+    const was = { question: 0, complaint: 1, recommendation: 0, switching: 2 };
+    assert.equal(asksLine(one, was), "1 question, 1 complaint, 1 recommendation and 1 post about switching this week (0, 1, 0 and 2 the week before)");
+    assert.equal(asksLine({ question: 9, complaint: 0, recommendation: 3, switching: 0 }, null), "9 questions, 0 complaints, 3 recommendations and 0 posts about switching this week");
+  });
+});

@@ -76,6 +76,15 @@ const UNREAD_WHY: Record<string, (p: string) => string> = {
   not_planned: (p) => (p === "linkedin" ? "not measured: a pulse reads no LinkedIn author's earlier posts (5 credits each); social-viral does" : "not measured: no read of its author's earlier posts could be planned"),
 };
 
+type Asks = { question: number; complaint: number; recommendation: number; switching: number };
+const many = (count: number, one: string, more: string) => `${n(count)} ${count === 1 ? one : more}`;
+
+/** "9 questions, 1 complaint, 3 recommendations and 1 post about switching this week (…the week before)". */
+export function asksLine(now: Asks, was: Asks | null | undefined): string {
+  const line = `${many(now.question, "question", "questions")}, ${many(now.complaint, "complaint", "complaints")}, ${many(now.recommendation, "recommendation", "recommendations")} and ${many(now.switching, "post", "posts")} about switching this week`;
+  return line + (was ? ` (${n(was.question)}, ${n(was.complaint)}, ${n(was.recommendation)} and ${n(was.switching)} the week before)` : "");
+}
+
 export function buildResult(out: PulseOutput, input: PulseInput, deep: boolean): WorkflowResult {
   const who = (r: Row) => whoOf(r, r.authorFollowers ?? out.sizes.get(`${r.platform}:${r.author.toLowerCase()}`) ?? null);
   const named = (r: Row) => r.platform === "reddit" || (r.authorFollowers ?? out.sizes.get(`${r.platform}:${r.author.toLowerCase()}`) ?? 0) >= NAME_FLOOR;
@@ -110,10 +119,7 @@ export function buildResult(out: PulseOutput, input: PulseInput, deep: boolean):
     requests: reqs(out.thisWeek).length ? both : [],
     method: "each kept post's stance label, judged by SocialCrawl",
   });
-  const asks = now
-    ? `${n(now.question)} questions, ${n(now.complaint)} complaints, ${n(now.recommendation)} recommendations and ${n(now.switching)} posts about switching this week` +
-      (was ? ` (${n(was.question)}, ${n(was.complaint)}, ${n(was.recommendation)} and ${n(was.switching)} the week before)` : "")
-    : "What people asked could not be read";
+  const asks = now ? asksLine(now, was) : "What people asked could not be read";
   const f3 = ev.add({
     claim: asks,
     confidence: reqs(out.thisWeek).length ? "seen" : "unknown",
