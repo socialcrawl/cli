@@ -1,0 +1,13 @@
+{
+  "success": false,
+  "error": {
+    "type": "INVALID_PARAMETER",
+    "message": "handle is required.",
+    "status": 400,
+    "doc_url": "https://www.socialcrawl.dev/docs/errors#invalid-parameter",
+    "retryable": false
+  },
+  "credits_used": 0,
+  "credits_remaining": 99,
+  "request_id": "req-bad400"
+}

@@ -1,0 +1,37 @@
+{
+  "success": false,
+  "error": {
+    "type": "INSUFFICIENT_CREDITS",
+    "message": "Your account has 0 credits remaining. This endpoint requires 1 credits. Retrying this request will not succeed until your account balance changes.",
+    "status": 402,
+    "doc_url": "https://www.socialcrawl.dev/docs/errors#insufficient-credits",
+    "retryable": false,
+    "details": {
+      "reason": "balance_too_low",
+      "retry_will_succeed": false,
+      "next_step": "Top up your credits on the billing page (or turn on auto-recharge there), then send the request again.",
+      "top_up_url": "https://www.socialcrawl.dev/dashboard/billing/payments?pack=growth",
+      "credits_required": 1,
+      "recommended_pack": {
+        "id": "growth",
+        "name": "Growth",
+        "credits": 20000,
+        "price_gbp": 49,
+        "price_display": "£49",
+        "days_at_current_burn": 31,
+        "credits_per_day": 640,
+        "burn_window_days": 14
+      },
+      "checkout_url": "https://www.socialcrawl.dev/dashboard/billing/checkout?token=eyJzdWIi",
+      "auto_recharge": {
+        "enabled": false,
+        "armed": false,
+        "setup_url": "https://www.socialcrawl.dev/dashboard/billing/payments?autorecharge=enable#auto-recharge",
+        "top_up_requested": false
+      }
+    }
+  },
+  "credits_used": 0,
+  "credits_remaining": 0,
+  "request_id": "req-abc123"
+}

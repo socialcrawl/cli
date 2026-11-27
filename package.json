@@ -1,0 +1,51 @@
+{
+  "name": "socialcrawl",
+  "version": "0.1.0",
+  "description": "Sign in to SocialCrawl once, install its workflows into your coding agents, and run them from a terminal: viral posts, marketing reads and teardowns across X, TikTok, Instagram, YouTube, Reddit and LinkedIn.",
+  "type": "module",
+  "bin": {
+    "socialcrawl": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.test.json --noEmit",
+    "test": "tsc -p tsconfig.test.json && node scripts/run-tests.mjs",
+    "prepare": "tsc -p tsconfig.json",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "keywords": [
+    "socialcrawl",
+    "social-media",
+    "viral",
+    "tiktok",
+    "instagram",
+    "youtube",
+    "reddit",
+    "linkedin",
+    "twitter",
+    "cli",
+    "agent-skills"
+  ],
+  "homepage": "https://www.socialcrawl.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/socialcrawl/cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/socialcrawl/cli/issues",
+    "email": "socialcrawl@ridio.io"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "22.20.7",
+    "typescript": "5.9.3"
+  }
+}
