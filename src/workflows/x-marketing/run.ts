@@ -34,11 +34,12 @@ export interface XShares {
 }
 export const SHARES: { default: XShares; deep: XShares } = {
   default: { search: 16, baselines: 30, amplifiers: 5, quotes: 3, replies: 5 },
-  deep: { search: 40, baselines: 60, amplifiers: 24, quotes: 12, replies: 32 },
+  deep: { search: 40, baselines: 75, amplifiers: 24, quotes: 12, replies: 32 },
 };
 export const DEPTH = {
-  default: { topPages: 2, latestPages: 1, amplified: 3, quoted: 2, replied: 3, replyPages: 1, retweeterPages: 1 },
-  deep: { topPages: 4, latestPages: 2, amplified: 6, quoted: 6, replied: 8, replyPages: 2, retweeterPages: 2 },
+  // authors: the most authors whose earlier posts a run reads (the engine's default is DEFAULT_CONFIRM, 12).
+  default: { authors: 12, topPages: 2, latestPages: 1, amplified: 3, quoted: 2, replied: 3, replyPages: 1, retweeterPages: 1 },
+  deep: { authors: 30, topPages: 4, latestPages: 2, amplified: 6, quoted: 6, replied: 8, replyPages: 2, retweeterPages: 2 },
 };
 
 export interface Candidates {
@@ -74,6 +75,8 @@ export interface XRun {
   topic: string;
   window: Window;
   deep: boolean;
+  /** The most authors whose earlier posts this run reads. */
+  authorCap: number;
   searches: CallRecord[];
   allRows: Row[];
   candidates: Candidates;
@@ -136,7 +139,7 @@ export async function runX(session: Session, args: WorkflowArgs): Promise<XRun> 
 
   // 3 and 4. baselines and rank, through social-viral's shared path
   const shares: Record<ViralPlatform, number> = { x: sh.baselines, tiktok: 0, instagram: 0, youtube: 0, reddit: 0, linkedin: 0 };
-  const { plans, pages } = await readBaselines(session, candidates.rows, shares, () => args.now);
+  const { plans, pages } = await readBaselines(session, candidates.rows, shares, () => args.now, { confirm: { x: depth.authors } });
   let result = rankViral(candidates.rows, plans, pages, { now: args.now });
 
   // 5. amplifiers: the top break-outs, and any break-out whose likes per view are low
@@ -182,5 +185,5 @@ export async function runX(session: Session, args: WorkflowArgs): Promise<XRun> 
     if (rec) replies.push(rec);
   }
 
-  return { query, topic, window, deep: args.deep, searches, allRows, candidates, result, items: result.items, amplifiers, quotes, replies, asks: askSummary(replies) };
+  return { query, topic, window, deep: args.deep, authorCap: depth.authors, searches, allRows, candidates, result, items: result.items, amplifiers, quotes, replies, asks: askSummary(replies) };
 }

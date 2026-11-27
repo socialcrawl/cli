@@ -1,7 +1,7 @@
 // x-marketing: a keyword in; out, the X posts breaking out over the window against their authors'
 // earlier originals, who carried the top ones (retweeters, quotes), the boosted flag on both of its
 // conditions, what the replies ask, what will not copy and what to try next.
-import { BANDS, BIG_FOLLOWERS, DEFAULT_CONFIRM, Evidence, FLAG_LABEL, MIN_PEERS, rateOf } from "../../engine/index.ts";
+import { BANDS, BIG_FOLLOWERS, Evidence, FLAG_LABEL, MIN_PEERS, rateOf } from "../../engine/index.ts";
 import type { CardInput, Meta, ReportInput, Row } from "../../engine/index.ts";
 import type { Session } from "../../kit/record.ts";
 import type { Table, WorkflowResult } from "../../render/types.ts";
@@ -101,13 +101,13 @@ function xResult(run: XRun, session: Session, quoteDeep: WorkflowQuote): Workflo
   const reasons = new Map<string, number>();
   for (const u of run.result.unread) reasons.set(u.reason, (reasons.get(u.reason) ?? 0) + 1);
   const WHY: Record<string, string> = {
-    below_top_n: `past the ${DEFAULT_CONFIRM} authors whose posts drew the most views per follower, the most a run reads`,
+    below_top_n: `past the ${run.authorCap} authors whose posts drew the most views per follower, the most a ${run.deep ? "deep" : "default"} run reads`,
     budget: "the stage's share of the budget ran out",
     planned_not_read: "the stage's share of the budget ran out",
     no_id: "the post carries no author to read",
     no_method: "no baseline method for the platform",
   };
-  for (const [r, k] of reasons) ev.unknown({ what: `${n(k)} ${plural(k, "candidate")} with no baseline`, why: WHY[r] ?? r, ...(r === "below_top_n" ? {} : { check: `socialcrawl x-marketing "${run.query}" --deep` }) });
+  for (const [r, k] of reasons) ev.unknown({ what: `${n(k)} ${plural(k, "candidate")} with no baseline`, why: WHY[r] ?? r, ...(r === "below_top_n" && run.deep ? {} : { check: `socialcrawl x-marketing "${run.query}" --deep` }) });
   for (const e of session.errors) ev.unknown({ what: `${e.stage} failed`, why: `${e.status ?? "no status"} ${e.message}`.trim() });
 
   const sections: ReportInput["sections"] = [];
@@ -153,7 +153,7 @@ function xResult(run: XRun, session: Session, quoteDeep: WorkflowQuote): Workflo
   sections.push({ title: "What will not copy", body: wont.length ? table(["What", "Posts", "Why it may not copy"], wont) : `No break-out here rests on a large audience or a flagged engagement pattern [${F1.id}].` });
   const lead = viral[0] ?? null;
   const cmd = (rest2: string) => `\`npx -y socialcrawl@latest ${rest2}\``;
-  const plays: string[][] = [[`Read deeper: more pages of posts, retweeters and quotes on more posts, more replies`, cmd(`x-marketing "${run.query}" --deep`), `free quote first: about ${quoteDeep.expected} credits, at most ${quoteDeep.max}`]];
+  const plays: string[][] = [[`Read deeper: more pages of posts, up to ${DEPTH.deep.authors} authors, retweeters and quotes on more posts, more replies`, cmd(`x-marketing "${run.query}" --deep`), `free quote first: about ${quoteDeep.expected} credits, at most ${quoteDeep.max}`]];
   if (lead) {
     const where = linkOf(lead.row).startsWith("http") ? linkOf(lead.row) : "<the first link in data/posts.csv>";
     plays.push([`Track the top break-out (${label(lead.row)})`, cmd(`post-tracker ${where}`), `its views in 14 days against ${n(lead.row.views ?? 0)} today`]);
@@ -191,6 +191,7 @@ function xResult(run: XRun, session: Session, quoteDeep: WorkflowQuote): Workflo
     methodNotes: [
       `A break-out is a post at ${BANDS.beat} times or more the median views of its author's ${MIN_PEERS} to 20 originals published before it, read with one search that ends at the post's minute; under ${MIN_PEERS} such posts, or a median under 100 views, no multiple is given.`,
       "A post is marked likely boosted (inferred) only when both hold: under 1.5 likes per 1,000 views, and more than 12% of the retweeters read above 10,000 followers. It is then never called a break-out. With few likes per view alone it is marked unusual engagement (inferred) and kept.",
+      `This ${run.deep ? "deep" : "default"} run read the earlier posts of at most ${run.authorCap} authors (${run.deep ? `a default run reads ${DEPTH.default.authors}` : `--deep reads up to ${DEPTH.deep.authors}`}), those whose posts drew the most views per follower; the other candidates are counted under what could not be verified.`,
       `Accounts under ${n(NAME_MIN_FOLLOWERS)} followers are described, not named or linked; data/posts.csv keeps every row.`,
     ],
   };

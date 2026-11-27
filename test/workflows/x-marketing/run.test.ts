@@ -116,6 +116,38 @@ describe("x-marketing: who carried a post, without its author", () => {
   });
 });
 
+describe("x-marketing: how many authors a run measures", () => {
+  // Twenty authors, each with one post on the keyword and twenty earlier originals.
+  const crowd = (): Route[] => {
+    const posts = Array.from({ length: 20 }, (_, k) => tw({ id: `20${String(k).padStart(2, "0")}`, author: `author${k}`, followers: 20_000 + k, views: 50_000 + k * 1_000, likes: 2_000, at: "2026-11-20T10:00:00Z", text: `post ${k}` }));
+    return [
+      { endpoint: "twitter/search/tweets", when: (p) => String(p.query ?? "").startsWith("from:author"), data: { items: history("authorX", 20, 5_000, "2026-11-20T00:00:00Z", { followers: 20_000 }) } },
+      { endpoint: "twitter/search/tweets", when: (p) => String(p.query).startsWith("quoted_tweet_id:"), data: { items: [] } },
+      { endpoint: "twitter/search/tweets", data: { items: posts } },
+      { endpoint: "twitter/tweet/retweeters", data: { items: [] } },
+      { endpoint: "twitter/tweet/replies", data: { items: [], labels: { status: "complete", labelled: 0 } } },
+    ];
+  };
+  const authorsRead = (sent: { params: Record<string, unknown> }[]) => new Set(sent.map((s) => String(s.params.query ?? "")).filter((q) => q.startsWith("from:")).map((q) => q.split(" ")[0])).size;
+
+  it("reads at most 12 authors on a default run, and the report says 12", async () => {
+    const { kit, session } = fakeSession(crowd(), workflow.defaultBudget);
+    const out = await workflow.run(session, ARGS);
+    assert.equal(authorsRead(kit.sent), 12);
+    const md = renderReport(out.report);
+    assert.match(md, /past the 12 authors[^\n]*--deep/, "on a default run, --deep is the way to measure the rest");
+  });
+
+  it("reads up to 30 authors on --deep, so --deep measures all 20 here", async () => {
+    const { kit, session } = fakeSession(crowd(), workflow.deepBudget);
+    const out = await workflow.run(session, { ...ARGS, deep: true });
+    assert.equal(authorsRead(kit.sent), 20);
+    const md = renderReport(out.report);
+    assert.doesNotMatch(md, /with no baseline/);
+    assert.match(md, /at most 30 authors/, "the method notes state the run's cap");
+  });
+});
+
 describe("x-marketing: the trait line", () => {
   it("names a trait only when break-outs have it more often than the rest, and says how often the rest do", async () => {
     const { session } = fakeSession(world(), 60);
@@ -131,8 +163,8 @@ describe("x-marketing: the report, when the budget runs short", () => {
     const { session } = fakeSession(world(), 9);
     const md = renderReport((await workflow.run(session, ARGS)).report);
     assert.match(md, /with no baseline: the stage's share of the budget ran out|with no baseline: past the 12 authors/);
-    assert.doesNotMatch(md, /past the 12 authors[^\n]*--deep/, "--deep reads the same 12 authors, so it is not offered as the check");
-    assert.doesNotMatch(md, /more authors/, "--deep does not read more authors");
+    assert.match(md, /Read deeper: [^|]*up to 30 authors/, "the deep play says what --deep adds");
+    assert.match(md, /This default run read the earlier posts of at most 12 authors \(--deep reads up to 30\)/);
     assert.doesNotMatch(md, /with no baseline: (budget|planned_not_read|no_id)\b/);
   });
 
