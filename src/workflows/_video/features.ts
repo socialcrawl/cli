@@ -26,7 +26,8 @@ export function lengthBand(r: Row): string | null {
 /** The first line or sentence of a caption or title, without its hashtags; null when nothing is left. */
 export function hookOf(text: string): string | null {
   const line = text.split(/\r?\n/).map((l) => l.replace(/#[\p{L}\p{N}_]+/gu, "").trim()).find((l) => l.length > 0) ?? "";
-  const sentence = line.match(/^.*?[.!?](?=\s|$)/)?.[0] ?? line;
+  // A sentence ends at . ! or ? before a space or the end, but not after an abbreviation ("vs.").
+  const sentence = line.match(/^.*?(?<!\b(?:vs|e\.g|i\.e|etc|Mr|Mrs|Ms|Dr|St|No|approx))[.!?](?=\s|$)/i)?.[0] ?? line;
   const s = sentence.trim();
   if (!s) return null;
   return s.length <= 100 ? s : s.slice(0, 100).replace(/\s+\S*$/, "");

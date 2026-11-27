@@ -21,6 +21,7 @@ describe("features", () => {
     assert.equal(hookOf("For writing, this is bad. This is good."), "For writing, this is bad.");
     assert.equal(hookOf("Line one\nline two"), "Line one");
     assert.equal(hookOf("#ai #coding"), null, "hashtags alone are no hook");
+    assert.equal(hookOf("Vibe Coding vs. Agentic Coding: Which Should You Use?"), "Vibe Coding vs. Agentic Coding: Which Should You Use?", "an abbreviation ends no sentence");
     assert.ok((hookOf("word ".repeat(60)) ?? "").length <= 100);
   });
 
