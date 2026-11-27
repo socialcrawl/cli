@@ -55,8 +55,12 @@ export interface VideoSpec {
   baselineCall(row: Row, deep: boolean): { endpoint: string; params: Params } | null;
   /** Rows of a baseline page made comparable with the candidate (YouTube: the format of the shelf read). */
   baselineRows?(rows: Row[], call: { endpoint: string }): Row[];
+  /** Pages read one by one after the first read, while a candidate's baseline is still short (default 1, deep 2). */
+  extraPages?: Depth<number>;
   /** How many creators get a baseline read. */
   confirm: Depth<number>;
+  /** Candidates published within this many days are read first: the creator's newest pages can hold the posts before them. */
+  recentDays?: number;
   /** Free order of who is read first: views over followers where the row has followers, else views. */
   preRank: "views_per_follower" | "views";
   comments: { endpoint: string; posts: Depth<number>; pages: Depth<number> };

@@ -1,5 +1,5 @@
-// tiktok-marketing replayed on the live run of 27/11/2026 ("AI coding tools", 17 calls, 40
-// credits, first request req-Wqpnij50EtqpBRUO), anonymised: accounts under 10,000 followers
+// tiktok-marketing replayed on the live run of 27/11/2026 ("AI coding tools", 15 calls, 40
+// credits, first request req-6ziPiG9ob9gPFP3k), anonymised: accounts under 10,000 followers
 // are aliases. Real response shapes, no network.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -43,13 +43,13 @@ describe("tiktok-marketing: replay of the live run of 27/11/2026", () => {
     assert.equal(kit.sent.length, recs.length);
   });
 
-  it("finds the same lead break-out: 1,128,931 views over a median of 2,269 across 11 earlier videos", async () => {
+  it("finds the same lead break-out: 37,440 views over a median of 43.5 across 20 earlier videos", async () => {
     const { out } = await replay();
-    const f = out.report.evidence.findings.find((x) => x.numbers.multiple === 497.55);
-    assert.ok(f, "the 498x finding");
-    assert.equal(f.numbers.views, 1_128_931);
-    assert.equal(f.numbers.base, 2_269);
-    assert.equal(f.numbers.peers, 11);
+    const f = out.report.evidence.findings.find((x) => x.numbers.multiple === 860.69);
+    assert.ok(f, "the 861x finding");
+    assert.equal(f.numbers.views, 37_440);
+    assert.equal(f.numbers.base, 43.5);
+    assert.equal(f.numbers.peers, 20);
   });
 
   it("passes the report gate on real rows", async () => {

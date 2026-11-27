@@ -8,7 +8,7 @@ import { ENGINE_SECTIONS, renderCard, renderReport, validateReport } from "../..
 import { REPORT_SECTIONS, times } from "../../../src/workflows/_video/report.ts";
 import { workflow } from "../../../src/workflows/tiktok-marketing/index.ts";
 import { fakeSession } from "../_video/fake-kit.ts";
-import { A1, ARGS, B1, world } from "./world.ts";
+import { A1, ARGS, B1, labelled, world } from "./world.ts";
 
 async function result(budget = 60) {
   const { session } = fakeSession(world(), budget);
@@ -60,6 +60,14 @@ describe("tiktok-marketing: the report", () => {
     assert.match(out.card.headlines[2] ?? "", /length "30 to 60 s"/);
     assert.doesNotMatch(md, /\| comment gate \| no \|/, "only gated posts are a trait worth a row");
     assert.match(md, /1 break-out came from an account under 10,000 followers/);
+  });
+
+  it("prints an em dash in quoted text as a spaced hyphen", async () => {
+    const dashed = world().map((r) => (r.endpoint === "tiktok/post/comments" ? { ...r, data: { items: [labelled("9", "Is it free—or paid?", 0.9)], labels: { status: "complete", labelled: 1 } } } : r));
+    const { session } = fakeSession(dashed);
+    const md = renderReport((await workflow.run(session, ARGS)).report);
+    assert.doesNotMatch(md, /—/);
+    assert.match(md, /Is it free - or paid\?/);
   });
 
   it("says what it could not read, with the reason", async () => {

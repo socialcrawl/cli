@@ -25,9 +25,11 @@ export const INSTAGRAM: VideoSpec = {
   floorViews: 1_000,
   groupKey: (r: Row) => baselineKey(r),
   baselineCall: (r, deep) => (r.author ? { endpoint: "instagram/profile/reels", params: { handle: r.author, max_pages: deep ? 3 : 2 } } : null),
+  extraPages: { default: 3, deep: 4 },
   confirm: { default: 6, deep: 15 },
+  recentDays: 30,
   preRank: "views_per_follower",
-  comments: { endpoint: "instagram/post/comments", posts: { default: 2, deep: 6 }, pages: { default: 1, deep: 2 } },
+  comments: { endpoint: "instagram/post/comments", posts: { default: 1, deep: 6 }, pages: { default: 1, deep: 2 } },
   transcripts: {
     endpoint: "instagram/media/transcript",
     posts: { default: 1, deep: 3 },
@@ -49,7 +51,7 @@ export const INSTAGRAM: VideoSpec = {
     preRead: { default: 8, deep: 20 },
   },
   shares: {
-    default: { search: 10, enrich: 0, baseline: 18, comments: 10, transcript: 10, names: 11 },
+    default: { search: 10, enrich: 0, baseline: 24, comments: 5, transcript: 10, names: 11 },
     deep: { search: 20, enrich: 0, baseline: 60, comments: 60, transcript: 30, names: 30 },
   },
 };

@@ -27,7 +27,9 @@ export const TIKTOK: VideoSpec = {
   floorViews: 1_000,
   groupKey: (r: Row) => baselineKey(r),
   baselineCall: (r, deep) => (r.author ? { endpoint: "tiktok/profile/videos", params: { handle: r.author, max_pages: deep ? 4 : 3 } } : null),
+  extraPages: { default: 2, deep: 3 },
   confirm: { default: 8, deep: 15 },
+  recentDays: 60,
   preRank: "views_per_follower",
   comments: { endpoint: "tiktok/post/comments", posts: { default: 3, deep: 8 }, pages: { default: 1, deep: 2 } },
   transcripts: {

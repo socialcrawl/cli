@@ -147,7 +147,14 @@ export async function runVideo(session: Session, spec: VideoSpec, args: Workflow
   };
   const score = (g: Row[]) =>
     Math.max(...g.map((r) => (spec.preRank === "views_per_follower" ? (perFollower(r) ?? (r.views ?? 0) / 1e9) : (r.views ?? 0))));
-  const ordered = [...groups.entries()].sort((a, b) => score(b[1]) - score(a[1]) || a[0].localeCompare(b[0]));
+  // A creator's newest pages reach back only so far: candidates older than recentDays go after
+  // the recent ones, whose earlier posts those pages can hold (kept, never dropped).
+  const recent = (g: Row[]) => {
+    if (!spec.recentDays) return true;
+    const newest = Math.max(...g.map((r) => (r.publishedAt ? Date.parse(r.publishedAt) : 0)));
+    return args.now.getTime() - newest <= spec.recentDays * 86_400_000;
+  };
+  const ordered = [...groups.entries()].sort((a, b) => Number(recent(b[1])) - Number(recent(a[1])) || score(b[1]) - score(a[1]) || a[0].localeCompare(b[0]));
   const unread: VideoRun["unread"] = [];
   const baselines: VideoRun["baselines"] = [];
   const pageOf = new Map<string, Row[]>();
@@ -177,17 +184,18 @@ export async function runVideo(session: Session, spec: VideoSpec, args: Workflow
     }
     const recs = [rec];
     let page = shape(spec, rowsOf(rec), call);
-    const thin = g.map((r) => breakoutWithPage(r, page, { now: args.now, metric: "views" })).find((b) => b.band === "too_few");
-    if (thin) {
-      const step: BaselineStep = { platform: spec.platform, key, endpoint: call.endpoint, params: call.params as Record<string, string | number>, credits: pages, rowIds: g.map((r) => r.id), preRank: null };
-      const next = morePage(thin, step, rec.body, left());
-      if (next) {
-        const more = await session.call(`baseline:${spec.platform}`, next.endpoint, stageParams(next.endpoint, next.params, { labels: "off" }), Math.min(next.credits, left()));
-        if (more) {
-          recs.push(more);
-          page = [...page, ...shape(spec, rowsOf(more), call)];
-        }
-      }
+    // Walk back one page at a time while a candidate still has fewer than 8 earlier posts and
+    // the response says more exist: busy creators post daily, so the newest pages often end
+    // after the candidate (a live Instagram run, 27/11/2026: 5 of 6 creators short after 3 pages).
+    const step: BaselineStep = { platform: spec.platform, key, endpoint: call.endpoint, params: call.params as Record<string, string | number>, credits: pages, rowIds: g.map((r) => r.id), preRank: null };
+    for (let extra = 0; extra < pick(spec.extraPages ?? { default: 1, deep: 2 }); extra++) {
+      const thin = g.map((r) => breakoutWithPage(r, page, { now: args.now, metric: "views" })).find((b) => b.band === "too_few");
+      const next = thin ? morePage(thin, step, recs[recs.length - 1].body, left()) : null;
+      if (!next) break;
+      const more = await session.call(`baseline:${spec.platform}`, next.endpoint, stageParams(next.endpoint, next.params, { labels: "off" }), Math.min(next.credits, left()));
+      if (!more) break;
+      recs.push(more);
+      page = [...page, ...shape(spec, rowsOf(more), call)];
     }
     baselines.push({ key, rows: page, records: recs });
     for (const r of g) pageOf.set(r.id, page);

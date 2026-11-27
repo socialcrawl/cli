@@ -37,7 +37,8 @@ export function times(m: number | null): string {
   if (m === null) return "no multiple";
   return m >= 10 ? `${Math.round(m)}x` : `${Math.round(m * 10) / 10}x`;
 }
-const cell = (s: string) => s.replace(/\|/g, "/").replace(/\s+/g, " ").trim();
+// Quoted captions and comments keep their words; an em dash is printed as a spaced hyphen.
+const cell = (s: string) => s.replace(/\|/g, "/").replace(/\s*[—–]\s*/g, " - ").replace(/\s+/g, " ").trim();
 const table = (head: string[], rows: string[][]) => [`| ${head.join(" | ")} |`, `|${head.map(() => "---").join("|")}|`, ...rows.map((r) => `| ${r.map(cell).join(" | ")} |`)].join("\n");
 const plural = (k: number, word: string) => `${word}${k === 1 ? "" : "s"}`;
 
@@ -53,7 +54,8 @@ export function videoResult(spec: VideoSpec, run: VideoRun, session: Session, ar
   const named = (r: Row) => mayName(followersOf(r)) && Boolean(r.author);
   const linkOf = (r: Row) => (named(r) && r.url ? r.url : "in data/posts.csv");
 
-  const measured = run.items;
+  // Measured means given a multiple: a post with too few earlier posts on the pages read is counted apart.
+  const measured = run.items.filter((i) => i.breakout.multiple !== null);
   const viral = measured.filter((i) => i.viral);
   const rest = measured.filter((i) => !i.viral);
   const searchIds = run.searches.map((r) => r.requestId).filter((x): x is string => x !== null);
@@ -154,7 +156,7 @@ export function videoResult(spec: VideoSpec, run: VideoRun, session: Session, ar
   const byReason = new Map<string, number>();
   for (const u of run.unread) byReason.set(u.reason, (byReason.get(u.reason) ?? 0) + 1);
   for (const [r, k] of byReason) ev.unknown({ what: `${n(k)} ${plural(k, "candidate")} with no baseline`, why: reasons[r] ?? r, check: "socialcrawl " + spec.workflow + ` "${run.query}" --deep` });
-  const tooFew = measured.filter((i) => i.breakout.band === "too_few").length;
+  const tooFew = run.items.filter((i) => i.breakout.band === "too_few").length;
   if (tooFew) ev.unknown({ what: `${n(tooFew)} ${plural(tooFew, P)} with too few earlier ${P}s`, why: `fewer than ${MIN_PEERS} comparable ${P}s before it on the pages read, so no multiple is given` });
   for (const g of asks.gaps) ev.unknown({ what: `${n(g.unlabelled)} comments unlabelled (${g.endpoint})`, why: g.skipReason ? `labels ${g.status}: ${g.skipReason}` : `labels ${g.status ?? "missing"}` });
   for (const e of session.errors) ev.unknown({ what: `${e.stage} failed`, why: `${e.status ?? "no status"} ${e.message}`.trim() });
@@ -234,7 +236,7 @@ export function videoResult(spec: VideoSpec, run: VideoRun, session: Session, ar
   });
 
   const tRows = run.transcripts.map((t) => {
-    const row = measured.find((i) => i.row.id === t.rowId)?.row ?? run.candidates.rows.find((r) => r.id === t.rowId);
+    const row = run.items.find((i) => i.row.id === t.rowId)?.row ?? run.candidates.rows.find((r) => r.id === t.rowId);
     const words = t.text.split(/\s+/).slice(0, 40).join(" ");
     return [row ? label(row) : t.rowId, `"${words}${t.text.split(/\s+/).length > 40 ? " …" : ""}"`];
   });
@@ -341,8 +343,8 @@ function cardHeadlines(spec: VideoSpec, run: VideoRun, viral: VideoItem[], label
   const P = spec.postNoun;
   const fit = (s: string) => (s.length <= 110 ? s : s.slice(0, 109).replace(/\s+\S*$/, "") + "…");
   const out: string[] = [];
-  if (viral.length) out.push(fit(`${viral.length} ${plural(viral.length, P)} broke out at ${BANDS.beat}x or more ${viral.length === 1 ? "its" : "their"} ${spec.accountNoun}'s usual views (${run.items.length} of ${run.candidates.rows.length} measured)`));
-  else out.push(fit(`No ${P} reached ${BANDS.beat}x its ${spec.accountNoun}'s usual views (${run.items.length} measured)`));
+  if (viral.length) out.push(fit(`${viral.length} ${plural(viral.length, P)} broke out at ${BANDS.beat}x or more ${viral.length === 1 ? "its" : "their"} ${spec.accountNoun}'s usual views (${run.items.filter((i) => i.breakout.multiple !== null).length} of ${run.candidates.rows.length} measured)`));
+  else out.push(fit(`No ${P} reached ${BANDS.beat}x its ${spec.accountNoun}'s usual views (${run.items.filter((i) => i.breakout.multiple !== null).length} measured)`));
   const lead = viral[0];
   if (lead) out.push(fit(`Top: ${label(lead.row)}, ${times(lead.breakout.multiple)} over ${lead.breakout.peers} earlier ${P}s`));
   if (topTrait) out.push(fit(`${topTrait.v} of ${viral.length} break-outs share the ${topTrait.trait} "${topTrait.value}"`));

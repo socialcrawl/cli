@@ -83,6 +83,49 @@ describe("instagram-marketing: the run", () => {
     assert.ok(session.ledger.credits <= workflow.defaultBudget);
   });
 
+  it("counts as measured only the reels that got a multiple, and says how many had too few earlier reels", async () => {
+    // An old reel: the creator's newest reels are all after it, so no earlier reel is on the page.
+    const R4 = reel({ id: "R4", author: "oldtimer", views: 500_000, at: "2026-06-01T10:00:00Z" });
+    const routes = world().map((r) => (r.endpoint === "instagram/search/reels" ? { ...r, data: { items: [R1, R2, R3, R4] } } : r));
+    routes.push({ endpoint: "instagram/profile/reels", when: (p) => p.handle === "oldtimer", data: { items: history("oldtimer", 24, 9_000, "2026-11-26T00:00:00Z", { ext: { media_type: "video" } }) } });
+    routes.push({ endpoint: "instagram/profile", when: (p) => p.handle === "oldtimer", data: { author: { username: "oldtimer", followers: 1_000 } } });
+    const { session } = fakeSession(routes);
+    const out = await workflow.run(session, ARGS);
+    assert.equal(out.card.headlines[0], "2 reels broke out at 3x or more their creator's usual views (3 of 4 measured)");
+    assert.match(renderReport(out.report), /1 reel with too few earlier reels/);
+  });
+
+  it("reads creators of recent reels first: an old reel's earlier reels are out of reach of the newest pages", async () => {
+    const R4 = reel({ id: "R4", author: "oldtimer", views: 500_000, at: "2026-06-01T10:00:00Z" });
+    const routes = world().map((r) => (r.endpoint === "instagram/search/reels" ? { ...r, data: { items: [R1, R2, R3, R4] } } : r));
+    routes.push({ endpoint: "instagram/profile", when: (p) => p.handle === "oldtimer", data: { author: { username: "oldtimer", followers: 1_000 } } });
+    const { kit, session } = fakeSession(routes);
+    await runVideo(session, { ...INSTAGRAM, confirm: { default: 1, deep: 1 } }, ARGS);
+    const read = kit.sent.filter((s) => s.endpoint === "instagram/profile/reels").map((s) => s.params.handle);
+    assert.deepEqual(read, ["smalldev"], "500 views per follower, but six months old, so read after the recent ones");
+  });
+
+  it("walks back page by page until a busy creator's baseline holds 8 reels before the candidate", async () => {
+    // One reel a day: the 24 newest reach 03/11, the next page 22/10, the one after 10/10.
+    const day = (d: number) => new Date(Date.parse("2026-11-27T09:00:00Z") - d * 86_400_000).toISOString();
+    const busy = (from: number, n: number) => Array.from({ length: n }, (_, i) => reel({ id: `b${from + i}`, author: "busy", views: 4_000, at: day(from + i) }));
+    const R5 = reel({ id: "R5", author: "busy", views: 80_000, at: "2026-10-25T12:00:00Z" });
+    const routes: Route[] = [
+      { endpoint: "instagram/search/reels", data: { items: [R5] } },
+      { endpoint: "instagram/profile", data: { author: { username: "busy", followers: 2_000 } } },
+      { endpoint: "instagram/profile/reels", when: (p) => p.cursor === undefined, data: { items: busy(1, 24), $pagination: { has_more: true, next_cursor: "k1" } } },
+      { endpoint: "instagram/profile/reels", when: (p) => p.cursor === "k1", data: { items: busy(25, 12), $pagination: { has_more: true, next_cursor: "k2" } } },
+      { endpoint: "instagram/profile/reels", when: (p) => p.cursor === "k2", data: { items: busy(37, 12), $pagination: { has_more: true, next_cursor: "k3" } } },
+    ];
+    const { kit, session } = fakeSession(routes);
+    const run = await runVideo(session, INSTAGRAM, ARGS);
+    const cursors = kit.sent.filter((s) => s.endpoint === "instagram/profile/reels").map((s) => s.params.cursor ?? "start");
+    assert.deepEqual(cursors, ["start", "k1", "k2"], "stops once the baseline is enough");
+    const b = run.items.find((i) => i.row.id === "R5")?.breakout;
+    assert.equal(b?.multiple, 20, "80,000 over a median of 4,000");
+    assert.ok((b?.peers ?? 0) >= 8);
+  });
+
   it("says 'its' for a single break-out", async () => {
     const one = world().map((r) => (r.endpoint === "instagram/search/reels" ? { ...r, data: { items: [R1, R3] } } : r));
     const { session } = fakeSession(one);
