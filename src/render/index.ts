@@ -65,7 +65,7 @@ export function terminalSummary(run: RunOutput, dir: string): string[] {
   ].filter(Boolean);
   if (gaps.length) lines.push(`${gaps.join(" ")} The report lists each one.`);
   const m = run.report.meta;
-  lines.push(`Cost: ${m.credits} credit${m.credits === 1 ? "" : "s"}, ${m.calls} calls, ${m.seconds} s.`);
+  lines.push(`Cost: ${m.credits} credit${m.credits === 1 ? "" : "s"}, ${m.calls} call${m.calls === 1 ? "" : "s"}, ${m.seconds} s.`);
   lines.push(`Report: ${path.join(dir, "report.html")}`);
   return lines.slice(0, 12);
 }

@@ -73,6 +73,14 @@ describe("terminalSummary", () => {
   });
 });
 
+describe("terminalSummary's cost line", () => {
+  it("counts one call and one credit in the singular", () => {
+    const run = sampleRun();
+    run.report.meta = { ...run.report.meta, credits: 1, calls: 1, seconds: 0.3 };
+    assert.ok(terminalSummary(run, "x").includes("Cost: 1 credit, 1 call, 0.3 s."));
+  });
+});
+
 describe("terminalSummary and the report agree", () => {
   it("counts every line of the report's 'What we could not verify', limitations included", () => {
     const run = sampleRun();
