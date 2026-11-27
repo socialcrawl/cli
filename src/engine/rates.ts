@@ -23,6 +23,13 @@ export interface Rate {
   minMaxCredits?: number;
   /** A POST batch is priced `page` credits per this many ids (postCost). */
   perIds?: number;
+  /**
+   * Extra credits a page may hold for each include= token sent (instagram/search/reels
+   * include=engagement: 1 a reel filled, up to 30). walkParams adds them, so a call with the
+   * token is not capped below what the server asks for one page (a free 400 otherwise:
+   * req-GCrgEsRS3xvKvDxM, 27/11/2026). Tokens without a hold here add nothing.
+   */
+  includeHold?: Record<string, number>;
   note?: string;
 }
 
@@ -40,11 +47,11 @@ export const RATES: Record<string, Rate> = {
   "tiktok/post/transcript": { page: 10, walks: false },
   // 5 a page without include=ad, which the workflows never send (21 with it). Registry x-credit-cost 5.
   "tiktok/adlibrary/search": { page: 5, walks: true },
-  "instagram/search/reels": { page: 1, topicHold: 4, walks: true },
+  "instagram/search/reels": { page: 1, topicHold: 4, walks: true, includeHold: { engagement: 30 } },
   "instagram/profile/reels": { page: 1, walks: true },
   "instagram/post/comments": { page: 5, walks: true },
   "instagram/media/transcript": { page: 10, walks: false },
-  "youtube/search": { page: 1, topicHold: 4, walks: true },
+  "youtube/search": { page: 1, topicHold: 4, walks: true, includeHold: { engagement: 5, channel: 5 } },
   "youtube/channel/videos": { page: 1, walks: true },
   "youtube/video/comments": { page: 1, walks: true },
   "youtube/transcripts": { page: 3, walks: false, perIds: 1, note: "POST, 3 per transcript" },
@@ -185,6 +192,28 @@ export function quoteLines(q: Quote): string[] {
  * given, and what the planned pages can cost at most (each page's price plus the topic
  * filter's hold when relevant_to is sent).
  */
+/** The include= holds of one page: the sum over the tokens sent that the rate table holds for. */
+function includeHoldOf(r: Rate, params: Record<string, string | number | boolean | undefined>): number {
+  if (!r.includeHold || params.include === undefined) return 0;
+  return String(params.include)
+    .split(",")
+    .map((t) => t.trim())
+    .reduce((s, t) => s + (r.includeHold?.[t] ?? 0), 0);
+}
+
+/**
+ * The least max_credits one page can be sent with: its price (or minMaxCredits); with an
+ * include= hold, the page, the topic filter's hold and the include hold together, which is what
+ * the server asks for. Unchanged for a call without include=.
+ */
+function pageFloor(r: Rate, params: Record<string, string | number | boolean | undefined>): number {
+  const base = Math.max(r.page, r.minMaxCredits ?? 0);
+  const include = includeHoldOf(r, params);
+  if (!include) return base;
+  const topic = params.relevant_to !== undefined && r.topicHold ? r.topicHold : 0;
+  return Math.max(base, r.page + topic + include);
+}
+
 export function walkParams(
   endpoint: string,
   params: Record<string, string | number | boolean | undefined>,
@@ -194,8 +223,9 @@ export function walkParams(
   if (!r.walks) return params;
   const pages = Math.max(1, Math.floor(Number(params.max_pages ?? 1)) || 1);
   const topic = params.relevant_to !== undefined && r.topicHold ? r.topicHold : 0;
-  const floor = Math.max(r.page, r.minMaxCredits ?? 0);
-  const most = Math.max(pages * (r.page + topic), floor);
+  const include = includeHoldOf(r, params);
+  const floor = pageFloor(r, params);
+  const most = Math.max(pages * (r.page + topic + include), floor);
   const cap = Math.floor(Math.min(maxCredits, most));
   if (cap < floor) throw new Error(`${endpoint} needs max_credits of at least ${floor} for a page; a budget of ${maxCredits} cannot start it.`);
   return { ...params, max_pages: pages, max_credits: cap };
@@ -259,7 +289,7 @@ export class Budget {
   allow(endpoint: string, params: Record<string, string | number | boolean | undefined>, stageMax = Infinity): Record<string, string | number | boolean | undefined> {
     const r = rateOf(endpoint);
     const cap = Math.min(stageMax, this.left);
-    const floor = r.walks ? Math.max(r.page, r.minMaxCredits ?? 0) : r.page;
+    const floor = r.walks ? pageFloor(r, params) : r.page;
     if (cap < floor) throw new BudgetSpent(endpoint, this.left, floor);
     return r.walks ? walkParams(endpoint, params, cap) : params;
   }
