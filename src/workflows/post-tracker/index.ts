@@ -31,6 +31,7 @@ function trackerResult(t: Tracked, session: Session, args: WorkflowArgs): Workfl
   const usual = h.platform === "reddit" ? "its community's usual score" : `its author's usual ${unit}`;
   const named = h.platform !== "reddit" && mayName(h.authorFollowers);
   const readIds = t.readings.map((r) => r.requestId).filter((x): x is string => Boolean(x));
+  for (const rec of session.records) if (rec.status === 200) ev.cover(rec, rec.stage);
 
   const F1 = ev.add({
     claim: `${who}: ${n(value(last))} ${unit} at ${when(last.at)}.`,
@@ -51,7 +52,7 @@ function trackerResult(t: Tracked, session: Session, args: WorkflowArgs): Workfl
   const [spanCount, spanUnit] = hours < 1 ? [Math.round(hours * 60), "minute"] : hours < 48 ? [Math.round(hours), "hour"] : [Math.round(hours / 24), "day"];
   const spanText = `${spanCount} ${spanUnit}${spanCount === 1 ? "" : "s"}`;
   const F3 =
-    t.readings.length > 1
+    t.readings.length > 1 && hours * 60 >= 1
       ? ev.add({
           claim: `${n(t.gainPerHour)} ${unit} an hour from ${when(first.at)} to ${when(last.at)}.`,
           confidence: "seen",
@@ -85,7 +86,9 @@ function trackerResult(t: Tracked, session: Session, args: WorkflowArgs): Workfl
     {
       title: "Over time",
       body: [
-        F3 ? `It gained ${n((value(last) ?? 0) - (value(first) ?? 0))} ${unit} in ${spanText} across ${t.readings.length} readings, about ${n(t.gainPerHour)} an hour [${F3.id}].` : `One reading so far. Run the same command again later and each run adds a reading here [${F1.id}].`,
+        t.readings.length > 1 && !F3
+          ? `${t.readings.length} readings so far, less than a minute apart: too close together to show a change. Run it again later [${F1.id}].`
+          : F3 ? `It gained ${n((value(last) ?? 0) - (value(first) ?? 0))} ${unit} in ${spanText} across ${t.readings.length} readings, about ${n(t.gainPerHour)} an hour [${F3.id}].` : `One reading so far. Run the same command again later and each run adds a reading here [${F1.id}].`,
         "",
         table(["Read at", unit[0].toUpperCase() + unit.slice(1), "Likes", "Comments", "Request"], t.readings.map((r) => [when(r.at), n(value(r)), n(r.likes), n(r.comments), r.requestId ?? ""])),
       ].join("\n"),
@@ -144,7 +147,7 @@ function trackerResult(t: Tracked, session: Session, args: WorkflowArgs): Workfl
       { label: "Readings", value: n(t.readings.length) },
       { label: "Credits", value: n(meta.credits) },
     ],
-    charts: [{ title: `${unit[0].toUpperCase() + unit.slice(1)} at each reading`, unit, bars: t.readings.map((r) => ({ label: when(r.at), value: value(r) ?? 0 })) }],
+    charts: [{ title: `${unit[0].toUpperCase() + unit.slice(1)} at each reading`, unit, bars: t.readings.map((r, k) => ({ label: `#${k + 1} · ${when(r.at)}`, value: value(r) ?? 0 })) }],
     tables: {
       readings: { columns: ["at", "views", "likes", "comments", "shares", "saves", "quotes", "request_id"], rows: t.readings.map((r) => ({ at: r.at, views: r.views, likes: r.likes, comments: r.comments, shares: r.shares, saves: r.saves, quotes: r.quotes, request_id: r.requestId })) },
     },
@@ -159,7 +162,8 @@ function trackerQuote(args: WorkflowArgs): WorkflowQuote {
   } catch {
     /* the run reports the bad link */
   }
-  const baseline = platform === "tiktok" ? 3 : platform === "instagram" ? 2 : 1;
+  // X's baseline is a two-page search for the originals before the post; TikTok reads 3 pages.
+  const baseline = platform === "tiktok" ? 3 : platform === "instagram" || platform === "x" ? 2 : 1;
   const expected = timesN + baseline;
   return { expected, max: expected + timesN, lines: [`readings: ${timesN} × about 1 credit`, `the author's baseline, first run only: up to ${baseline}`, `Total: about ${expected} credits, at most ${expected + timesN}.`] };
 }

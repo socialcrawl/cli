@@ -139,6 +139,25 @@ describe("post-tracker: the report", () => {
     assert.match(out.card.headlines[0], /20x its author's usual views/);
   });
 
+  it("says how each call was read, and reports no gain from readings under a minute apart", async () => {
+    const root = mkdtempSync(path.join(tmpdir(), "sc-track-"));
+    const one = sessionIn(root, world(() => 200_000), "2026-11-27T10:00:00Z");
+    await trackPost(one.session, { input: URL, flags: {}, deep: false, now: new Date("2026-11-27T10:00:00Z") });
+    const two = sessionIn(root, world(() => 200_000), "2026-11-27T10:00:30Z");
+    const out = await workflow.run(two.session, { input: URL, flags: {}, deep: false, now: new Date("2026-11-27T10:00:30Z") });
+    const md = renderReport(out.report);
+    assert.ok(out.report.evidence.coverage.length >= 1, "How this was read lists the run's calls");
+    assert.doesNotMatch(md, /in 0 minutes/);
+    assert.match(out.report.sections.find((s) => s.title === "Over time")!.body, /less than a minute apart/);
+    const labels = out.charts![0].bars.map((b) => b.label);
+    assert.equal(new Set(labels).size, labels.length, "every bar has its own label");
+  });
+
+  it("quotes an X post's first run with its two-page baseline", async () => {
+    const q = await workflow.quote({ input: "https://x.com/a/status/1", flags: {}, deep: false, now: new Date() });
+    assert.equal(q.expected, 3);
+  });
+
   it("describes a small author and never names them", async () => {
     const root = mkdtempSync(path.join(tmpdir(), "sc-track-"));
     const small = world(() => 30_000).map((r) => (r.endpoint === "tiktok/post" ? { ...r, data: () => ({ post: post({ id: "7712346103240248606", author: "tinyone", followers: 800, views: 30_000, at: "2026-11-20T15:00:00Z", url: URL }).post }) } : r));
