@@ -9,7 +9,7 @@ import { ASK_CLASSES } from "../_video/comments.ts";
 import { accountLabel, mayName, NAME_MIN_FOLLOWERS } from "../_video/naming.ts";
 import { times } from "../_video/report.ts";
 import { dmy } from "../_video/window.ts";
-import { usualOf } from "./plan.ts";
+import { clashesOf, usualOf } from "./plan.ts";
 import type { Best, CompetitorRun } from "./run.ts";
 
 export const REPORT_SECTIONS = ["Share of voice", "Each brand's best posts", "What each audience asks", "Ads", "Next plays"];
@@ -74,6 +74,8 @@ export function competitorResult(run: CompetitorRun, session: Session, quoteDeep
 
   // Unverified
   ev.unknown({ what: "Posts the topic filter misjudged", why: "the filter keeps posts it judges to be about each brand; it can keep an off-topic post or drop a real one, so read the posts in data/posts.csv before quoting a share" });
+  for (const c of clashesOf(run.share)) ev.unknown({ what: `Whether ${c.brand}'s ${LABEL[c.platform]} posts are about the brand: ${Math.round(c.reachShare * 100)}% of the reach from ${Math.round(c.postShare * 100)}% of the posts`, why: "a name that is also a common word can pass the filter, and so can one viral post; read them in data/posts.csv before quoting the share" });
+  if (!run.about) ev.unknown({ what: "No category was given (--about)", why: "each brand was judged as a product compared with the others, so a brand whose name is also a common word can keep posts about another meaning", check: `socialcrawl competitor-research "${run.brands.join(", ")}" --about "<their category>"` });
   if (run.outsideWindow && !run.window.allTime) ev.unknown({ what: `${n(run.outsideWindow)} posts published outside ${span}`, why: "outside the window this run reads", check: `socialcrawl competitor-research "${run.brands.join(", ")}" --since 2000-01-01 (all time)` });
   for (const brand of run.brands)
     for (const p of run.share) if ((p.brands.find((b) => b.brand === brand)?.posts ?? 0) === 0) ev.unknown({ what: `${brand} on ${LABEL[p.platform]}`, why: "no post kept: the search found none about the brand in the window, which is not proof of none" });
@@ -102,7 +104,7 @@ export function competitorResult(run: CompetitorRun, session: Session, quoteDeep
           "",
           table(
             ["Brand", "Platform", "Account", "Published", "× its usual reach", "Reach", "Baseline", "Link"],
-            run.best.map((b) => [b.brand, LABEL[b.row.platform], label(b.row), b.row.publishedAt ? dmy(b.row.publishedAt) : "unknown", b.breakout?.multiple != null ? times(b.breakout.multiple) : "not measured", n((b.row.platform === "reddit" ? b.row.likes : b.row.views) ?? 0), b.breakout?.base != null ? `median of ${n(b.breakout.base)} over ${b.breakout.peers} earlier posts` : b.line, linkOf(b.row)]),
+            run.best.map((b) => [b.brand, LABEL[b.row.platform], label(b.row), b.row.publishedAt ? dmy(b.row.publishedAt) : "unknown", b.breakout?.multiple != null ? times(b.breakout.multiple) : "not measured", n((b.row.platform === "reddit" ? b.row.likes : b.row.views) ?? 0), b.breakout?.base != null ? `median of ${n(Math.round(b.breakout.base))} over ${b.breakout.peers} earlier posts` : b.line, linkOf(b.row)]),
           ),
         ].join("\n")
       : "No brand had a post kept by its search in the window.",
@@ -130,7 +132,10 @@ export function competitorResult(run: CompetitorRun, session: Session, quoteDeep
       : table(["Brand", "Own ads found", "Other advertisers' ads left out", "Request"], run.ads.map((a) => [a.brand, n(a.own.length), n(a.others), a.requestId ?? ""])),
   });
   const cmd = (rest: string) => `\`npx -y socialcrawl@latest ${rest}\``;
-  const plays: string[][] = [[`Read deeper: two pages, Instagram, Reddit threads and ads`, cmd(`competitor-research "${run.brands.join(", ")}" --deep`), `free quote first: about ${quoteDeep.expected} credits, at most ${quoteDeep.max}`]];
+  const aboutFlag = run.about ? ` --about "${run.about}"` : "";
+  const plays: string[][] = [];
+  if (!run.about) plays.push(["Name the category, for a sharper filter", cmd(`competitor-research "${run.brands.join(", ")}" --about "<their category>"`), "each brand's share once other meanings of its name are dropped"]);
+  plays.push([`Read deeper: two pages, Instagram, Reddit threads and ads`, cmd(`competitor-research "${run.brands.join(", ")}"${aboutFlag} --deep`), `free quote first: about ${quoteDeep.expected} credits, at most ${quoteDeep.max}`]);
   if (top) plays.push([`See what works on TikTok for the leader, ${top[0]}`, cmd(`tiktok-marketing "${top[0]}"`), "its break-outs, hooks and comments"]);
   if (lead) {
     const where = linkOf(lead.row).startsWith("http") ? linkOf(lead.row) : "<the link in data/posts.csv>";
@@ -168,7 +173,9 @@ export function competitorResult(run: CompetitorRun, session: Session, quoteDeep
     evidence: ev,
     meta,
     methodNotes: [
-      "Each brand is searched on each platform with the topic filter set to the brand and its category, so a brand whose name is a common word counts only posts judged to be about it.",
+      run.about
+        ? `Filter: each brand in \`${run.about}\`. It is searched on each platform with the topic filter set to the brand and that category, so a brand whose name is a common word counts only posts judged to be about it.`
+        : `Filter: each brand as a product compared with the others (${run.brands.join(", ")}), since no category was given. A brand whose name is also a common word can keep some posts about another meaning; --about names the category for a sharper filter.`,
       "A best post's multiple is its reach over the median of its author's comparable posts published before it (on Reddit, its community's posts of the month); under 8 such posts no multiple is given.",
       `Accounts under ${n(NAME_MIN_FOLLOWERS)} followers, or whose size was not read, are described, not named or linked; Reddit members are never named.`,
     ],

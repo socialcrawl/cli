@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { brandSentence, parseBrands, planMentions, shareOfVoice, usualOf } from "../../../src/workflows/competitor-research/plan.ts";
+import { brandSentence, clashesOf, parseBrands, planMentions, shareOfVoice, usualOf } from "../../../src/workflows/competitor-research/plan.ts";
 import { windowOf } from "../../../src/workflows/_video/window.ts";
 import { row } from "../../engine/helpers.ts";
 
@@ -22,7 +22,30 @@ describe("competitor-research: the brands", () => {
 
   it("writes a filter sentence that names the brand and, when given, its category", () => {
     assert.equal(brandSentence("Neon", "serverless Postgres databases for developers"), "Neon, in serverless Postgres databases for developers: posts about this brand or its product");
-    assert.equal(brandSentence("Supabase"), "Supabase: posts about this brand or its product");
+    assert.equal(brandSentence("Neon", "serverless Postgres databases for developers", ["Supabase", "Firebase"]), "Neon, in serverless Postgres databases for developers: posts about this brand or its product", "with --about, the category alone");
+  });
+
+  it("marks a brand whose reach share far outruns its post share, as a word clash to check", () => {
+    const b = (brand: string, postShare: number, reachShare: number) => ({ brand, posts: 1, reach: 1, postShare, reachShare, topPostShare: 0.3 });
+    const shares = [
+      // QA 27/11/2026, Reddit: Neon's 3 kept posts ("Neon", "AGI achieved", "Neon girl") held 79% of the score.
+      { platform: "reddit" as const, metric: "score" as const, sharedPosts: 0, brands: [b("Supabase", 0.5, 0.18), b("Firebase", 0.29, 0.04), b("Neon", 0.21, 0.79)] },
+      // A normal leader: more posts and more reach, in step.
+      { platform: "tiktok" as const, metric: "views" as const, sharedPosts: 0, brands: [b("Supabase", 0.49, 0.36), b("Firebase", 0.51, 0.64), b("Neon", 0, 0)] },
+    ];
+    assert.deepEqual(clashesOf(shares), [{ brand: "Neon", platform: "reddit", postShare: 0.21, reachShare: 0.79 }]);
+  });
+
+  it("without --about, judges each brand as a product of one category with the brands it is compared with", () => {
+    // QA 27/11/2026: with "Neon: posts about this brand or its product", other meanings of the word
+    // (a meme, a 4.4M-view video) took 90 to 99% of Neon's reach on every platform.
+    assert.equal(
+      brandSentence("Neon", undefined, ["Supabase", "Firebase"]),
+      "Neon, the product or company compared here with Supabase and Firebase, as one category: posts about it, not other things called Neon",
+    );
+    assert.equal(brandSentence("Linear", undefined, ["Jira"]), "Linear, the product or company compared here with Jira, as one category: posts about it, not other things called Linear");
+    const calls = planMentions(["Supabase", "Firebase", "Neon"], { window: { since: "2026-10-29", until: "2026-11-27", allTime: false } as never, deep: false });
+    for (const c of calls.filter((x) => x.brand === "Neon")) assert.match(JSON.stringify(c.params), /compared here with Supabase and Firebase/);
   });
 });
 

@@ -132,6 +132,37 @@ describe("competitor-research: the report", () => {
     assert.equal(out.card.command, '/competitor-research "Acme, Bolt"');
   });
 
+  it("says which filter ran: the category when --about is given, the other brands when not", async () => {
+    const withAbout = renderReport((await workflow.run(fakeSession(world(), 100).session, ARGS)).report);
+    assert.match(withAbout, /Filter: each brand in `project management software`/);
+    assert.doesNotMatch(withAbout, /No category was given/);
+
+    const { session } = fakeSession(world(), 100);
+    const out = await workflow.run(session, { ...ARGS, flags: {} });
+    const md = renderReport(out.report);
+    assert.match(md, /Filter: each brand as a product compared with the others/);
+    assert.match(md, /No category was given \(--about\)/);
+    assert.match(md, /competitor-research "Acme, Bolt" --about "&lt;their category&gt;"|competitor-research "Acme, Bolt" --about "<their category>"/, "a next play names the category");
+    const v = validateReport(md, out.report.evidence.toJSON(out.report.meta), { requiredSections: ["In short", ...REPORT_SECTIONS, ...ENGINE_SECTIONS], summarySection: "In short", engineSections: ENGINE_SECTIONS });
+    assert.deepEqual(v.problems, []);
+  });
+
+  it("asks the reader to check a brand whose reach share far outruns its post share", async () => {
+    const big = world().map((r) => (r.endpoint === "twitter/search/tweets" && r.when?.({ relevant_to: "Bolt" }, undefined) ? { ...r, data: { items: [post({ id: "xb1", author: "boltapp", followers: 30_000, views: 2_000_000, at: "2026-11-19T12:00:00Z", text: "Bolt update", url: "https://x.com/boltapp/status/xb1" })] } } : r));
+    const md = renderReport((await workflow.run(fakeSession(big, 100).session, ARGS)).report);
+    assert.match(md, /Whether Bolt's X posts are about the brand: 91% of the reach from 33% of the posts/);
+    const plain = renderReport((await workflow.run(fakeSession(world(), 100).session, ARGS)).report);
+    assert.doesNotMatch(plain, /Whether \w+'s \w+ posts are about the brand/);
+  });
+
+  it("prints a best post's median as a whole number", async () => {
+    // acmehq's twenty earlier posts have 10,000 to 10,019 views: a median of 10,009.5.
+    const half: Route[] = [{ endpoint: "twitter/search/tweets", when: (p) => String(p.query).startsWith("from:acmehq"), data: { items: Array.from({ length: 20 }, (_, k) => post({ id: `ah${k}`, author: "acmehq", followers: 50_000, views: 10_000 + k, at: new Date(Date.parse("2026-11-19T00:00:00Z") - k * 86_400_000).toISOString() })) } }, ...world()];
+    const md = renderReport((await workflow.run(fakeSession(half, 100).session, ARGS)).report);
+    assert.doesNotMatch(md, /10,009\.5/);
+    assert.match(md, /10,010/);
+  });
+
   it("refuses one brand or six", async () => {
     const { session } = fakeSession(world(), 100);
     await assert.rejects(() => workflow.run(session, { ...ARGS, input: "Acme" }), /two to five brands/);

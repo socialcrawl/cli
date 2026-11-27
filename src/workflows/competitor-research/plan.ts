@@ -31,8 +31,18 @@ export function parseBrands(input: string): string[] {
 }
 
 /** The sentence the topic filter judges each row against: the brand, its category when given. */
-export function brandSentence(brand: string, about?: string): string {
-  return about ? `${brand}, in ${about}: posts about this brand or its product` : `${brand}: posts about this brand or its product`;
+/** "A and B", "A, B and C". */
+const andList = (xs: string[]) => (xs.length <= 1 ? (xs[0] ?? "") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
+
+/**
+ * The filter sentence for one brand. With --about, the category names it. Without, the other
+ * brands do: judged as products of one category, a brand whose name is also a common word (Neon)
+ * keeps the posts about the product and drops the other meanings (QA 27/11/2026).
+ */
+export function brandSentence(brand: string, about?: string, others: string[] = []): string {
+  if (about) return `${brand}, in ${about}: posts about this brand or its product`;
+  if (others.length) return `${brand}, the product or company compared here with ${andList(others)}, as one category: posts about it, not other things called ${brand}`;
+  return `${brand}: posts about this brand or its product`;
 }
 
 export interface MentionCall {
@@ -58,7 +68,7 @@ export function planMentions(brands: string[], o: { about?: string; window: Wind
   const platforms = o.deep ? [...DEFAULT_PLATFORMS, "instagram" as Platform] : DEFAULT_PLATFORMS;
   const out: MentionCall[] = [];
   for (const brand of brands) {
-    const topic = brandSentence(brand, o.about);
+    const topic = brandSentence(brand, o.about, brands.filter((x) => x !== brand));
     const add = (platform: Platform, endpoint: string, base: Params) =>
       out.push({ brand, platform, stage: `mentions:${platform}`, endpoint, params: stageParams(endpoint, { ...base, max_pages: pages }, { topic, labels: "default" }), pages });
     for (const p of platforms) {
@@ -130,4 +140,23 @@ export function shareOfVoice(rows: { brand: string; row: Row }[], brands: string
 /** What a best post's multiple is measured against: Reddit votes belong to the community. */
 export function usualOf(platform: Platform): string {
   return platform === "reddit" ? "its community's usual score" : "its author's usual reach";
+}
+
+export interface Clash {
+  brand: string;
+  platform: Platform;
+  postShare: number;
+  reachShare: number;
+}
+
+/**
+ * Brands whose share of reach on a platform far outruns their share of posts: 60% or more of the
+ * reach from under half as large a share of the posts. A name that is also a common word (Neon)
+ * passes the filter this way (QA 27/11/2026); so can a real viral post, so the report asks the
+ * reader to check the posts rather than calling it a clash.
+ */
+export function clashesOf(shares: PlatformShare[]): Clash[] {
+  const out: Clash[] = [];
+  for (const p of shares) for (const b of p.brands) if (b.posts > 0 && b.reachShare >= 0.6 && b.reachShare >= 2 * b.postShare) out.push({ brand: b.brand, platform: p.platform, postShare: b.postShare, reachShare: b.reachShare });
+  return out;
 }
