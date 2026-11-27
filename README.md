@@ -35,7 +35,7 @@ socialcrawl social-viral "AI coding tools"
 | [`competitor-research`](https://github.com/socialcrawl/workflows/tree/main/skills/socialcrawl-competitor-research) | two to five brands | 48 credits | 100 |
 | [`post-tracker`](https://github.com/socialcrawl/workflows/tree/main/skills/socialcrawl-post-tracker) | a post link | 2 to 5 credits, then 1 a reading | 10 |
 | [`video-teardown`](https://github.com/socialcrawl/workflows/tree/main/skills/socialcrawl-video-teardown) | a TikTok, YouTube, Instagram or X video link | 7 to 29 credits, by platform | 60 |
-| [`social-teardown`](https://github.com/socialcrawl/workflows/tree/main/skills/socialcrawl-teardown) | an account, or several handles of one brand | 77 credits | 100 |
+| [`social-teardown`](https://github.com/socialcrawl/workflows/tree/main/skills/socialcrawl-teardown) | an account, or several handles of one brand | 74 credits | 100 |
 | [`reddit-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/socialcrawl-reddit-marketing) | a keyword | 28 credits | 38 |
 
 Each was measured once on 27/11/2026 with nothing cached (on "AI coding tools", "Notion" for social-pulse, "Linear" for social-presence, "Supabase, Firebase, Neon" for competitor-research, one YouTube video for post-tracker, one video per platform for video-teardown, "@notionhq" for social-teardown, "headless CMS" for reddit-marketing); each workflow's page gives its request ids. Every default run fits in the 100 credits a new account starts with. `socialcrawl --help` lists the workflows your version has.
