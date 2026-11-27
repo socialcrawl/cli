@@ -57,7 +57,8 @@ export function barChartSvg(chart: BarChart, width = 720): string {
   const rows = chart.bars.map((b, i) => {
     const y = i * (ROW + GAP);
     const w = top > 0 ? Math.max(1, (b.value / top) * plot) : 1;
-    const value = `${formatNumber(b.value)}${unit}`;
+    // "1 post", not "1 posts": a plural word unit loses its s on exactly one.
+    const value = `${formatNumber(b.value)}${b.value === 1 && /^ \w+s$/.test(unit) ? unit.slice(0, -1) : unit}`;
     const label = b.label.length > 30 ? b.label.slice(0, 29) + "…" : b.label;
     const tip = `${b.label}: ${value}${b.note ? ` (${b.note})` : ""}`;
     const g = [

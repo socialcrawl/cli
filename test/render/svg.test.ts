@@ -31,6 +31,12 @@ describe("barChartSvg", () => {
     for (const t of xs) assert.ok(t.x + t.text.length * 7.6 <= width, `${t.text} ends past the edge at ${t.x}`);
   });
 
+  it("says 1 post, not 1 posts", () => {
+    const svg = barChartSvg({ title: "T", unit: "posts", bars: [{ label: "a", value: 3 }, { label: "b", value: 1 }] });
+    assert.ok(svg.includes(">3 posts<"));
+    assert.ok(svg.includes(">1 post<"));
+  });
+
   it("escapes labels", () => {
     const svg = barChartSvg({ title: "T", bars: [{ label: "Acme <b>", value: 1 }] });
     assert.ok(!svg.includes("<b>"));
