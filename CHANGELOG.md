@@ -2,7 +2,7 @@
 
 Changes to the `socialcrawl` package. Dates are DD/MM/YYYY. A release is published by pushing its tag; see "Release" in the README.
 
-## 0.1.0 (unreleased)
+## 0.1.0 (27/11/2026)
 
 - `socialcrawl init`: saves your key outside any project after a free check, or signs you in by email, then installs the workflows into Claude Code, Cursor, Codex, Gemini CLI and GitHub Copilot.
 - `socialcrawl whoami`: the key in use and its credits.
