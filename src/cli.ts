@@ -38,6 +38,7 @@ export interface MainDeps {
 const NO_KEY = [
   "No SocialCrawl key is set.",
   "Run socialcrawl init (or npx -y socialcrawl@latest init) to paste a key, or to sign in by email: 100 free credits, no card.",
+  "In an agent's shell, with no terminal to type in: npx -y socialcrawl@latest init --email <your email>, then open the link it prints.",
   "Or set SOCIALCRAWL_API_KEY.",
 ];
 
@@ -65,7 +66,8 @@ function helpLines(workflows: Workflow[]): string[] {
     "",
     "Usage:",
     "  socialcrawl init                  set up your key and install the workflows into your agents",
-    "                                    (--project: into this project only; --no-install: the key only)",
+    "                                    (--project: into this project only; --no-install: the key only;",
+    "                                    --email <address>: sign in by email where there is no terminal)",
     "  socialcrawl whoami                the key in use and its credits",
     '  socialcrawl <workflow> "<input>"  run a workflow',
     "",
@@ -146,7 +148,7 @@ export async function main(argv: string[], deps: MainDeps): Promise<number> {
             ask: deps.ask ?? (async () => ""),
             ...(parsed.skillsFrom ? { skillsFrom: parsed.skillsFrom } : {}),
           },
-          { yes: parsed.yes, install: parsed.install, project: parsed.project },
+          { yes: parsed.yes, install: parsed.install, project: parsed.project, ...(parsed.email ? { email: parsed.email } : {}) },
         );
       case "run": {
         const creds = credentialsFrom(deps.env, readConfig(deps.home));

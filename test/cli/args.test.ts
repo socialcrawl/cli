@@ -19,6 +19,8 @@ describe("parseCli", () => {
     assert.equal(init.cmd === "init" && init.yes, true);
     const project = parse(["init", "--project", "--skills-from", "../workflows"]);
     assert.ok(project.cmd === "init" && project.project && project.skillsFrom === "../workflows" && project.install);
+    const byEmail = parse(["init", "--email", "you@example.test"]);
+    assert.ok(byEmail.cmd === "init" && byEmail.email === "you@example.test");
     const bare = parse(["init", "--no-install"]);
     assert.ok(bare.cmd === "init" && !bare.install && !bare.project);
   });

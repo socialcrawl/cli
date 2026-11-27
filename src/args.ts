@@ -18,7 +18,7 @@ export type Parsed =
   | { cmd: "workflow-help"; workflow: Workflow }
   | { cmd: "version" }
   | { cmd: "whoami" }
-  | { cmd: "init"; yes: boolean; skillsFrom?: string; install: boolean; project: boolean }
+  | { cmd: "init"; yes: boolean; skillsFrom?: string; install: boolean; project: boolean; email?: string }
   | { cmd: "run"; workflow: Workflow; args: WorkflowArgs; opts: RunOptions };
 
 const SHARED: NonNullable<ParseArgsConfig["options"]> = {
@@ -61,13 +61,17 @@ export function parseCli(argv: string[], workflows: Workflow[], now: Date): Pars
       "skills-from": { type: "string" },
       "no-install": { type: "boolean", default: false },
       project: { type: "boolean", default: false },
+      email: { type: "string" },
     });
+    const email = typeof values.email === "string" ? values.email.trim() : "";
+    if (values.email !== undefined && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new UsageError("--email takes an email address, for example you@example.com.");
     return {
       cmd: "init",
       yes: values.yes === true,
       ...(values["skills-from"] !== undefined ? { skillsFrom: values["skills-from"] as string } : {}),
       install: values["no-install"] !== true,
       project: values.project === true,
+      ...(email ? { email } : {}),
     };
   }
   const workflow = workflows.find((w) => w.name === first);

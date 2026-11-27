@@ -232,9 +232,30 @@ export interface LoginOptions {
  * signs up, and types the code. Store the tokens in the user's config folder.
  */
 export async function login(opts: LoginOptions) {
+  const claim = await startLogin(opts);
+  opts.show(claim.verificationUri, claim.userCode);
+  const r = await pollLogin(claim, { ...opts, tries: Infinity });
+  if (r.status === "done") return r.tokens;
+  throw new Error(r.status === "failed" ? `Sign-in stopped: ${r.error}` : "Sign-in stopped.");
+}
+
+export interface LoginClaim {
+  claimToken: string;
+  verificationUri: string;
+  userCode: string;
+  /** Seconds between polls. */
+  interval: number;
+}
+
+export type LoginPoll =
+  | { status: "done"; tokens: { accessToken: string; refreshToken: string | null; clientId: string | null } }
+  | { status: "pending" }
+  | { status: "failed"; error: string };
+
+/** Register the sign-in: the link and code the person needs, and the claim to poll with. */
+export async function startLogin(opts: { app: string; email: string; fetch?: typeof fetch; site?: string }): Promise<LoginClaim> {
   const site = opts.site ?? SITE;
   const doFetch = opts.fetch ?? fetch;
-  const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   const reg = await doFetch(`${site}/api/auth/agent/identity`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -242,10 +263,33 @@ export async function login(opts: LoginOptions) {
   });
   const claim = (await reg.json()) as { claim_token?: string; claim?: { user_code: string; verification_uri: string; interval?: number } };
   if (!reg.ok || !claim.claim_token || !claim.claim) throw new Error(`Sign-in could not start (${reg.status}).`);
-  opts.show(claim.claim.verification_uri, claim.claim.user_code);
-  const wait = (claim.claim.interval ?? 5) * 1000;
-  const form = new URLSearchParams({ grant_type: "urn:workos:agent-auth:grant-type:claim", claim_token: claim.claim_token });
-  for (;;) {
+  return { claimToken: claim.claim_token, verificationUri: claim.claim.verification_uri, userCode: claim.claim.user_code, interval: claim.claim.interval ?? 5 };
+}
+
+/** A new 6-digit code for a started sign-in whose code expired (a code lasts 10 minutes, the claim an hour). */
+export async function renewLogin(o: { claimToken: string; email: string; fetch?: typeof fetch; site?: string }): Promise<Omit<LoginClaim, "claimToken"> | null> {
+  const doFetch = o.fetch ?? fetch;
+  const res = await doFetch(`${o.site ?? SITE}/api/auth/agent/identity/claim`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ claim_token: o.claimToken, email: o.email }),
+  });
+  const body = (await res.json().catch(() => ({}))) as { claim?: { user_code?: string; verification_uri?: string; interval?: number } };
+  if (!res.ok || !body.claim?.user_code || !body.claim.verification_uri) return null;
+  return { userCode: body.claim.user_code, verificationUri: body.claim.verification_uri, interval: body.claim.interval ?? 5 };
+}
+
+/** Poll a started sign-in up to `tries` times; "pending" when the person has not signed in yet. */
+export async function pollLogin(
+  claim: { claimToken: string; interval: number },
+  opts: { fetch?: typeof fetch; sleep?: (ms: number) => Promise<void>; site?: string; tries?: number },
+): Promise<LoginPoll> {
+  const site = opts.site ?? SITE;
+  const doFetch = opts.fetch ?? fetch;
+  const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  const wait = claim.interval * 1000;
+  const form = new URLSearchParams({ grant_type: "urn:workos:agent-auth:grant-type:claim", claim_token: claim.claimToken });
+  for (let i = 0; i < (opts.tries ?? Infinity); i++) {
     await sleep(wait);
     const res = await doFetch(`${site}/api/auth/oauth2/token`, {
       method: "POST",
@@ -255,9 +299,10 @@ export async function login(opts: LoginOptions) {
     if (res.status === 429) continue;
     const body = (await res.json()) as { access_token?: string; refresh_token?: string; client_id?: string; error?: string };
     if (res.ok && body.access_token) {
-      return { accessToken: body.access_token, refreshToken: body.refresh_token ?? null, clientId: body.client_id ?? null };
+      return { status: "done", tokens: { accessToken: body.access_token, refreshToken: body.refresh_token ?? null, clientId: body.client_id ?? null } };
     }
-    if (body.error === "authorization_pending") continue;
-    throw new Error(`Sign-in stopped: ${body.error ?? res.status}`);
+    if (body.error === "authorization_pending" || body.error === "slow_down") continue;
+    return { status: "failed", error: String(body.error ?? res.status) };
   }
+  return { status: "pending" };
 }

@@ -9,7 +9,7 @@ import { AGENT_NAMES, detectAgents, installSkills, installTargets } from "./agen
 import { tokenFetch } from "./auth.ts";
 import { CONFIG_LABEL, credentialsFrom, maskKey, readConfig, saveConfig } from "./config.ts";
 import type { Credentials } from "./config.ts";
-import { ApiError, createKit, login } from "./kit/kit.ts";
+import { ApiError, createKit, login, pollLogin, renewLogin, startLogin } from "./kit/kit.ts";
 import { EXIT } from "./run.ts";
 import { WORKFLOWS_ARCHIVE, extractSkills } from "./tarball.ts";
 import { VERSION } from "./version.ts";
@@ -34,7 +34,12 @@ export interface InitOptions {
   install: boolean;
   /** Install into the current project's skills folders instead of the global ones. */
   project: boolean;
+  /** Start an email sign-in without a terminal: print the link and code, save the claim, return. */
+  email?: string;
 }
+
+/** How many times a later init polls a started sign-in: about a minute at the usual 5 seconds, inside an agent shell's 2-minute limit. */
+export const FINISH_TRIES = 12;
 
 export const KEY_QUESTION = "Paste your SocialCrawl API key, or press Enter to sign in by email (free key, 100 credits, no card): ";
 
@@ -56,7 +61,7 @@ async function balanceWith(creds: Credentials, deps: InitDeps): Promise<number |
   }
 }
 
-async function setUpKey(deps: InitDeps): Promise<boolean> {
+async function setUpKey(deps: InitDeps, opts: InitOptions): Promise<boolean | "started"> {
   const existing = credentialsFrom(deps.env, readConfig(deps.home));
   if (existing) {
     const balance = await balanceWith(existing, deps);
@@ -68,9 +73,42 @@ async function setUpKey(deps: InitDeps): Promise<boolean> {
     deps.out(`Using ${who}: ${n(balance)} credits.`);
     return true;
   }
+  if (opts.email) {
+    const claim = await startLogin({ app: "cli", email: opts.email, fetch: deps.fetch });
+    saveConfig(deps.home, { pendingSignIn: { ...claim, email: opts.email, startedAt: new Date().toISOString() } });
+    deps.out(`To sign in as ${opts.email}, open ${claim.verificationUri} and enter the code ${claim.userCode}.`);
+    deps.out(`Once you have signed in, run: npx -y socialcrawl@latest init`);
+    return "started";
+  }
+  const pending = readConfig(deps.home).pendingSignIn;
+  if (pending) {
+    const r = await pollLogin(pending, { fetch: deps.fetch, ...(deps.sleep ? { sleep: deps.sleep } : {}), tries: FINISH_TRIES });
+    if (r.status === "pending") {
+      deps.out(`You have not signed in yet. Open ${pending.verificationUri} and enter the code ${pending.userCode}, then run npx -y socialcrawl@latest init again.`);
+      return false;
+    }
+    if (r.status === "failed" && r.error === "expired_token") {
+      const fresh = await renewLogin({ claimToken: pending.claimToken, email: pending.email, fetch: deps.fetch });
+      if (fresh) {
+        saveConfig(deps.home, { pendingSignIn: { ...pending, ...fresh } });
+        deps.out(`The code expired, so here is a new one. Open ${fresh.verificationUri} and enter the code ${fresh.userCode}, then run npx -y socialcrawl@latest init again.`);
+        return false;
+      }
+    }
+    if (r.status === "failed") {
+      saveConfig(deps.home, { pendingSignIn: undefined });
+      deps.out(`The sign-in for ${pending.email} stopped (${r.error}). Start again with: npx -y socialcrawl@latest init --email ${pending.email}`);
+      return false;
+    }
+    saveConfig(deps.home, { pendingSignIn: undefined, accessToken: r.tokens.accessToken, refreshToken: r.tokens.refreshToken ?? undefined, clientId: r.tokens.clientId ?? undefined });
+    const balance = await balanceWith({ kind: "token", ...r.tokens, source: CONFIG_LABEL }, deps);
+    deps.out(`Signed in as ${pending.email}. Saved to ${CONFIG_LABEL}${balance === null ? "." : `: ${n(balance)} credits.`}`);
+    return true;
+  }
   if (!deps.interactive) {
     deps.out("No SocialCrawl key is set, and there is no terminal to ask in.");
-    deps.out("Set SOCIALCRAWL_API_KEY, or run socialcrawl init in a terminal. Get a free key (100 credits, no card): https://www.socialcrawl.dev/auth/register");
+    deps.out(`To sign in by email (a free key, 100 credits, no card), run: npx -y socialcrawl@latest init --email <your email>, then open the link it prints.`);
+    deps.out("Or set SOCIALCRAWL_API_KEY to a key from https://www.socialcrawl.dev/dashboard/api.");
     return false;
   }
   const pasted = (await deps.ask(KEY_QUESTION, { hidden: true })).trim();
@@ -121,7 +159,9 @@ async function skillsSource(deps: InitDeps): Promise<string | null> {
 }
 
 export async function runInit(deps: InitDeps, opts: InitOptions): Promise<number> {
-  if (!(await setUpKey(deps))) return EXIT.error;
+  const key = await setUpKey(deps, opts);
+  if (key === "started") return EXIT.ok;
+  if (!key) return EXIT.error;
   let installedFor = 0;
   if (opts.install) {
     const agents = detectAgents(deps.home, deps.env);
@@ -139,7 +179,7 @@ export async function runInit(deps: InitDeps, opts: InitOptions): Promise<number
       }
     }
   }
-  deps.out('Try it: socialcrawl social-viral "AI coding tools"');
+  deps.out('Try it: npx -y socialcrawl@latest social-viral "AI coding tools"');
   if (installedFor) deps.out("Or ask your agent: what went viral about AI coding tools this week?");
   return EXIT.ok;
 }

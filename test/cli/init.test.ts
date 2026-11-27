@@ -5,7 +5,7 @@ import path from "node:path";
 import { describe, it } from "node:test";
 
 import { readConfig, saveConfig } from "../../src/config.ts";
-import { runInit } from "../../src/init.ts";
+import { FINISH_TRIES, runInit } from "../../src/init.ts";
 import type { InitDeps } from "../../src/init.ts";
 import { EXIT } from "../../src/run.ts";
 
@@ -96,6 +96,97 @@ describe("init: the key", () => {
     const { d, out } = deps({ interactive: false });
     assert.equal(await runInit(d, { yes: false, install: false, project: false }), EXIT.error);
     assert.ok(out.some((l) => l.includes("SOCIALCRAWL_API_KEY")));
+    assert.ok(out.some((l) => l.includes("npx -y socialcrawl@latest init --email")), out.join("\n"));
+  });
+});
+
+/** A fetch that answers the token endpoint from a list, and counts its calls. */
+function tokenAnswers(answers: { status: number; body: unknown }[]) {
+  const seen = { token: 0, identity: 0 };
+  const base = deps().d.fetch;
+  const f: typeof fetch = async (u, init) => {
+    const url = String(u);
+    if (url.endsWith("/api/auth/oauth2/token")) {
+      const a = answers[Math.min(seen.token++, answers.length - 1)];
+      return json(a.status, a.body);
+    }
+    if (url.endsWith("/api/auth/agent/identity")) seen.identity++;
+    return base(u, init);
+  };
+  return { f, seen };
+}
+
+const PENDING = { claimToken: "clm_1", verificationUri: "https://example.test/claim", userCode: "123456", interval: 0, email: "you@example.test", startedAt: "2026-11-27T10:00:00.000Z" };
+
+describe("init: signing in by email without a terminal (an agent's shell)", () => {
+  it("init --email starts the sign-in: prints the link, the code and how to finish, saves the claim and waits for nothing", async () => {
+    const t = tokenAnswers([{ status: 400, body: { error: "authorization_pending" } }]);
+    const { d, out, home, asked } = deps({ interactive: false, fetch: t.f });
+    assert.equal(await runInit(d, { yes: false, install: false, project: false, email: "you@example.test" }), EXIT.ok);
+    assert.equal(asked.length, 0);
+    assert.equal(t.seen.identity, 1);
+    assert.equal(t.seen.token, 0);
+    const text = out.join("\n");
+    assert.match(text, /https:\/\/example\.test\/claim/);
+    assert.match(text, /123456/);
+    assert.match(text, /npx -y socialcrawl@latest init/);
+    assert.equal(readConfig(home).pendingSignIn?.claimToken, "clm_1");
+  });
+
+  it("a later init finishes the sign-in: saves the tokens, clears the claim and goes on", async () => {
+    const t = tokenAnswers([{ status: 400, body: { error: "authorization_pending" } }, { status: 200, body: { access_token: "at1", refresh_token: "rt1", client_id: "cid" } }]);
+    const { d, out, home } = deps({ interactive: false, fetch: t.f });
+    saveConfig(home, { pendingSignIn: PENDING });
+    assert.equal(await runInit(d, { yes: false, install: false, project: false }), EXIT.ok);
+    const c = readConfig(home);
+    assert.equal(c.accessToken, "at1");
+    assert.equal(c.pendingSignIn, undefined);
+    assert.ok(out.some((l) => /Signed in/.test(l)), out.join("\n"));
+  });
+
+  it("before the person has signed in, says so with the same link and code, keeps the claim and exits 1", async () => {
+    const t = tokenAnswers([{ status: 400, body: { error: "authorization_pending" } }]);
+    const { d, out, home } = deps({ interactive: false, fetch: t.f });
+    saveConfig(home, { pendingSignIn: PENDING });
+    assert.equal(await runInit(d, { yes: false, install: false, project: false }), EXIT.error);
+    const text = out.join("\n");
+    assert.match(text, /not signed in yet/i);
+    assert.match(text, /https:\/\/example\.test\/claim/);
+    assert.match(text, /123456/);
+    assert.equal(readConfig(home).pendingSignIn?.claimToken, "clm_1");
+    assert.ok(t.seen.token >= 1 && t.seen.token <= 30, String(t.seen.token));
+  });
+
+  it("when the 10-minute code expired, gets a new code for the same claim and shows it", async () => {
+    const t = tokenAnswers([{ status: 400, body: { error: "expired_token" } }]);
+    const renewed: unknown[] = [];
+    const f: typeof fetch = async (u, init) => {
+      if (String(u).endsWith("/api/auth/agent/identity/claim")) {
+        renewed.push(JSON.parse(String(init?.body)));
+        return json(200, { claim: { user_code: "654321", verification_uri: "https://example.test/claim2", interval: 0 } });
+      }
+      return t.f(u, init);
+    };
+    const { d, out, home } = deps({ interactive: false, fetch: f });
+    saveConfig(home, { pendingSignIn: PENDING });
+    assert.equal(await runInit(d, { yes: false, install: false, project: false }), EXIT.error);
+    assert.deepEqual(renewed, [{ claim_token: "clm_1", email: "you@example.test" }]);
+    assert.match(out.join("\n"), /654321/);
+    assert.match(out.join("\n"), /https:\/\/example\.test\/claim2/);
+    assert.equal(readConfig(home).pendingSignIn?.userCode, "654321");
+  });
+
+  it("finishes inside an agent shell's 2-minute limit at the usual 5-second interval", () => {
+    assert.ok(FINISH_TRIES * 5 <= 90, String(FINISH_TRIES));
+  });
+
+  it("clears a claim that expired and says to start again", async () => {
+    const t = tokenAnswers([{ status: 400, body: { error: "expired_token" } }]);
+    const { d, out, home } = deps({ interactive: false, fetch: t.f });
+    saveConfig(home, { pendingSignIn: PENDING });
+    assert.equal(await runInit(d, { yes: false, install: false, project: false }), EXIT.error);
+    assert.equal(readConfig(home).pendingSignIn, undefined);
+    assert.match(out.join("\n"), /init --email/);
   });
 });
 
@@ -124,6 +215,6 @@ describe("init: the agents", () => {
     const { d, out, home } = deps();
     saveConfig(home, { apiKey: "sc_Good_notarealkey1234" });
     await runInit(d, { yes: false, install: false, project: false });
-    assert.ok(out.some((l) => l.includes('socialcrawl social-viral "')));
+    assert.ok(out.some((l) => l.includes('npx -y socialcrawl@latest social-viral "')), out.join("\n"));
   });
 });

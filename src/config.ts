@@ -3,11 +3,22 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
+/** An email sign-in started by `init --email` and not finished yet. */
+export interface PendingSignIn {
+  claimToken: string;
+  verificationUri: string;
+  userCode: string;
+  interval: number;
+  email: string;
+  startedAt: string;
+}
+
 export interface Config {
   apiKey?: string;
   accessToken?: string;
   refreshToken?: string;
   clientId?: string;
+  pendingSignIn?: PendingSignIn;
   /** The agents init installed the workflows into. */
   installed?: string[];
   savedAt?: string;
