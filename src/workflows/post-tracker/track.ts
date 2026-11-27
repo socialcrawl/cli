@@ -47,6 +47,8 @@ export interface Reading {
 
 export interface KeptBaseline {
   metric: "views" | "likes";
+  /** The engine's band for the first reading; "base_too_small" means no multiple is given. */
+  band?: string;
   /** Null when the author had fewer than 8 comparable earlier posts on the pages read. */
   median: number | null;
   peers: number;
@@ -161,7 +163,7 @@ export async function trackPost(session: Session, args: WorkflowArgs, deps: Trac
         const target = { ...latest, ...(ref.short ? { format: "short" as const } : {}) };
         const b = breakoutWithPage(target, rowsOf(rec), { now: args.now, metric });
         const dates = rowsOf(rec).filter((r) => b.peerIds.includes(r.id)).map((r) => r.publishedAt).filter((x): x is string => Boolean(x)).sort();
-        history.baseline = { metric, median: b.base, peers: b.peers, from: dates[0]?.slice(0, 10) ?? null, to: dates.at(-1)?.slice(0, 10) ?? null, requestIds: b.requestIds, readAt: args.now.toISOString() };
+        history.baseline = { metric, band: b.band, median: b.base, peers: b.peers, from: dates[0]?.slice(0, 10) ?? null, to: dates.at(-1)?.slice(0, 10) ?? null, requestIds: b.requestIds, readAt: args.now.toISOString() };
       }
     }
   }
@@ -175,7 +177,8 @@ export async function trackPost(session: Session, args: WorkflowArgs, deps: Trac
   const first = history.readings[0];
   const base = history.baseline?.median ?? null;
   const lastValue = value(last);
-  const multiple = base && lastValue !== null ? round2(lastValue / base) : null;
+  const tooSmall = history.baseline?.band === "base_too_small";
+  const multiple = base && !tooSmall && lastValue !== null ? round2(lastValue / base) : null;
   const hours = (Date.parse(last.at) - Date.parse(first.at)) / 3_600_000;
   const gainPerHour = history.readings.length > 1 && hours > 0 && value(first) !== null && lastValue !== null ? Math.round((lastValue - (value(first) as number)) / hours) : null;
   return { ref, history, readings: history.readings, baseline: history.baseline, multiple, gainPerHour, historyFile, asked: times, taken };

@@ -41,7 +41,7 @@ function trackerResult(t: Tracked, session: Session, args: WorkflowArgs): Workfl
   });
   const F2 = t.baseline
     ? ev.add({
-        claim: t.multiple !== null ? `${times(t.multiple)} ${usual}: a median of ${n(t.baseline.median)} over ${t.baseline.peers} earlier posts.` : `Too few earlier posts to compare: ${t.baseline.peers} found, 8 needed.`,
+        claim: t.multiple !== null ? `${times(t.multiple)} ${usual}: a median of ${n(t.baseline.median)} over ${t.baseline.peers} earlier posts.` : t.baseline.band === "base_too_small" ? `Its earlier posts had a median of ${n(t.baseline.median)} ${unit}, too few to compare.` : `Too few earlier posts to compare: ${t.baseline.peers} found, 8 needed.`,
         confidence: "seen",
         numbers: { multiple: t.multiple, median: t.baseline.median, peers: t.baseline.peers, needed: 8, breakout: 3 },
         requests: t.baseline.requestIds.length ? t.baseline.requestIds : F1.requests,
@@ -80,7 +80,9 @@ function trackerResult(t: Tracked, session: Session, args: WorkflowArgs): Workfl
       body: F2
         ? t.multiple !== null
           ? `Now at ${times(t.multiple)} ${usual}, a median of ${n(t.baseline!.median)} ${unit} over ${t.baseline!.peers} earlier posts${t.baseline!.from ? ` from ${dmy(t.baseline!.from)} to ${dmy(t.baseline!.to!)}` : ""}; 3 times or more is a break-out [${F2.id}].`
-          : `No multiple: ${t.baseline!.peers} comparable earlier posts were on the pages read, and 8 are needed [${F2.id}].`
+          : t.baseline!.band === "base_too_small"
+            ? `No multiple: its earlier posts had a median of ${n(t.baseline!.median)} ${unit}, too few to compare [${F2.id}].`
+            : `No multiple: ${t.baseline!.peers} comparable earlier posts were on the pages read, and 8 are needed [${F2.id}].`
         : "Not read: see What we could not verify.",
     },
     {
@@ -107,7 +109,7 @@ function trackerResult(t: Tracked, session: Session, args: WorkflowArgs): Workfl
   ];
 
   const summary = [`${who}: ${n(value(last))} ${unit} now [${F1.id}].`];
-  if (F2) summary.push(t.multiple !== null ? `That is ${times(t.multiple)} ${usual} [${F2.id}].` : `Too few earlier posts to compare it with [${F2.id}].`);
+  if (F2) summary.push(t.multiple !== null ? `That is ${times(t.multiple)} ${usual} [${F2.id}].` : t.baseline?.band === "base_too_small" ? `Its author's earlier posts had too small a median to compare it with [${F2.id}].` : `Too few earlier posts to compare it with [${F2.id}].`);
   if (F3) summary.push(`It gained ${n((value(last) ?? 0) - (value(first) ?? 0))} ${unit} in ${spanText} across ${t.readings.length} readings, about ${n(t.gainPerHour)} an hour [${F3.id}].`);
 
   const fit = (s: string) => (s.length <= 110 ? s : s.slice(0, 109).replace(/\s+\S*$/, "") + "…");

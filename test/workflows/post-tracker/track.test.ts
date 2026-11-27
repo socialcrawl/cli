@@ -158,6 +158,16 @@ describe("post-tracker: the report", () => {
     assert.equal(q.expected, 3);
   });
 
+  it("gives no multiple when the author's earlier posts had a median under the engine's floor", async () => {
+    const root = mkdtempSync(path.join(tmpdir(), "sc-track-"));
+    const routes = world(() => 37_000).map((r) => (r.endpoint === "tiktok/profile/videos" ? { ...r, data: { items: history("bigco", 20, 40, "2026-11-20T00:00:00Z") } } : r));
+    const { session } = sessionIn(root, routes, "2026-11-27T10:00:00Z");
+    const out = await workflow.run(session, { input: URL, flags: {}, deep: false, now: new Date("2026-11-27T10:00:00Z") });
+    const md = renderReport(out.report);
+    assert.doesNotMatch(md, /925x/);
+    assert.match(md, /its earlier posts had a median of 40 views, too few to compare/);
+  });
+
   it("describes a small author and never names them", async () => {
     const root = mkdtempSync(path.join(tmpdir(), "sc-track-"));
     const small = world(() => 30_000).map((r) => (r.endpoint === "tiktok/post" ? { ...r, data: () => ({ post: post({ id: "7712346103240248606", author: "tinyone", followers: 800, views: 30_000, at: "2026-11-20T15:00:00Z", url: URL }).post }) } : r));

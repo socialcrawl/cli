@@ -7,7 +7,7 @@ import { describe, it } from "node:test";
 import { ENGINE_SECTIONS, renderCard, renderReport, validateReport } from "../../../src/engine/index.ts";
 import { REPORT_SECTIONS, times } from "../../../src/workflows/_video/report.ts";
 import { workflow } from "../../../src/workflows/tiktok-marketing/index.ts";
-import { fakeSession, post } from "../_video/fake-kit.ts";
+import { fakeSession, history, post } from "../_video/fake-kit.ts";
 import { A1, ARGS, B1, labelled, world } from "./world.ts";
 
 async function result(budget = 60) {
@@ -86,6 +86,16 @@ describe("tiktok-marketing: the report", () => {
     const md = renderReport((await workflow.run(session, ARGS)).report);
     assert.match(md, /1 video published outside 29\/10\/2026 to 27\/11\/2026/);
     assert.match(md, /--since 2000-01-01/);
+  });
+
+  it("gives no multiple over a base too small to compare, and says so", async () => {
+    // smallone's earlier videos had a median of 50 views: under the engine's floor of 100.
+    const tiny = world().map((r) => (r.endpoint === "tiktok/profile/videos" && r.when?.({ handle: "smallone" }, undefined) ? { ...r, data: { items: history("smallone", 12, 50, "2026-11-18T00:00:00Z") } } : r));
+    const { session } = fakeSession(tiny);
+    const out = await workflow.run(session, ARGS);
+    const md = renderReport(out.report);
+    assert.doesNotMatch(md, /1800x|1,800x/);
+    assert.match(md, /1 video whose creator's earlier videos had a median under 100 views/);
   });
 
   it("says what it could not read, with the reason", async () => {

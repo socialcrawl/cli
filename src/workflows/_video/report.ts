@@ -3,7 +3,7 @@
 // this was read", "What we could not verify" and "Method notes"), the evidence, the tiles, the
 // charts and every row read as a table. Numbers in prose come only from findings; accounts
 // under 10,000 followers are described, never named or linked.
-import { BANDS, FLAG_LABEL, MIN_PEERS, PATTERN_MIN_POSTS, commentsOf, contrast, Evidence } from "../../engine/index.ts";
+import { BANDS, FLAG_LABEL, MIN_BASE, MIN_PEERS, PATTERN_MIN_POSTS, commentsOf, contrast, Evidence } from "../../engine/index.ts";
 import type { CardInput, Meta, ReportInput, Row } from "../../engine/index.ts";
 import type { Session } from "../../kit/record.ts";
 import type { Table, WorkflowResult } from "../../render/types.ts";
@@ -160,6 +160,8 @@ export function videoResult(spec: VideoSpec, run: VideoRun, session: Session, ar
   for (const u of run.unread) byReason.set(u.reason, (byReason.get(u.reason) ?? 0) + 1);
   for (const [r, k] of byReason) ev.unknown({ what: `${n(k)} ${plural(k, "candidate")} with no baseline`, why: reasons[r] ?? r, check: "socialcrawl " + spec.workflow + ` "${run.query}" --deep` });
   const tooFew = run.items.filter((i) => i.breakout.band === "too_few").length;
+  const smallBase = run.items.filter((i) => i.breakout.band === "base_too_small").length;
+  if (smallBase) ev.unknown({ what: `${n(smallBase)} ${plural(smallBase, P)} whose ${A}'s earlier ${P}s had a median under ${n(MIN_BASE.views)} views`, why: "too small a base for a multiple: a quiet or new account's first hit is not a break-out against its own past" });
   if (tooFew) ev.unknown({ what: `${n(tooFew)} ${plural(tooFew, P)} with too few earlier ${P}s`, why: `fewer than ${MIN_PEERS} comparable ${P}s before it on the pages read, so no multiple is given` });
   for (const g of asks.gaps) ev.unknown({ what: `${n(g.unlabelled)} comments unlabelled (${g.endpoint})`, why: g.skipReason ? `labels ${g.status}: ${g.skipReason}` : `labels ${g.status ?? "missing"}` });
   for (const e of session.errors) ev.unknown({ what: `${e.stage} failed`, why: `${e.status ?? "no status"} ${e.message}`.trim() });
