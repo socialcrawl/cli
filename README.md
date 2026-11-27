@@ -111,6 +111,12 @@ npm run build     # dist/cli.js
 
 Workflows live in `src/workflows/<name>/` and implement `Workflow` from `src/workflows/types.ts`. Every API call goes through the `Session` in `src/kit/record.ts`, which applies the run's budget, sends `max_pages` on every list call and keeps each response.
 
+## Release
+
+1. Set the version in `package.json` and `src/version.ts`, and date its entry in `CHANGELOG.md`: `## 0.1.0 (DD/MM/YYYY)`.
+2. Run `npm run release:check` with `SOCIALCRAWL_LEAK_GATE` set to the leak gate. It runs the gate, the whole suite and the build, and checks the version, the changelog entry and the files the package would publish.
+3. `git tag v0.1.0 && git push origin v0.1.0`. The release workflow publishes to npm with provenance (it needs the `NPM_TOKEN` repository secret) and creates the GitHub release from the changelog entry.
+
 ## Licence
 
 MIT. Methods adapted from other MIT projects are credited in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). The SocialCrawl name and logo (`assets/`, `docs/`) are not covered by the MIT licence.
