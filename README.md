@@ -7,7 +7,7 @@ npx -y socialcrawl@latest init
 socialcrawl social-viral "AI coding tools"
 ```
 
-Status, 27/11/2026: the engine and the API kit are in, with their tests. `init`, the report writer and the first workflow, `social-viral`, are being built here now. The npm package is not published yet.
+Status, 27/11/2026: the engine, the API kit and the report writer are in, with their tests. `init` and the first workflow, `social-viral`, are being built here now. The npm package is not published yet.
 
 ## What a run gives you
 
@@ -36,6 +36,6 @@ Workflows live in `src/workflows/<name>/` and implement `Workflow` from `src/wor
 
 ## Licence
 
-MIT. Methods adapted from other MIT projects are credited in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+MIT. Methods adapted from other MIT projects are credited in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). The SocialCrawl name and logo (`assets/`) are not covered by the MIT licence.
 
 Help: socialcrawl@ridio.io
