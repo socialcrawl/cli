@@ -100,3 +100,19 @@ export function activityOf(rows: Row[], now: Date): Activity {
     medianLikes: likes.length ? median(likes) : null,
   };
 }
+
+/** A site's host: an optional scheme and www., the domain kept, any path dropped. */
+const SITE = /^(?:https?:\/\/)?(?:www\.)?([a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,})(?:\/\S*)?$/i;
+
+/**
+ * A website written into the name, as an agent may pass "Linear (linear.app)": taken out only when
+ * it is in brackets, after a comma, or a link, so a name with a dot in it ("Node.js") stays whole.
+ */
+export function splitSite(input: string): { name: string; website?: string } {
+  const text = input.trim();
+  const parts =
+    text.match(/^(.+?)\s*\(\s*([^()\s]+)\s*\)$/) ?? text.match(/^(.+?)\s*,\s*(\S+)$/) ?? text.match(/^(.+?)\s+((?:https?:\/\/|www\.)\S+)$/);
+  const host = parts ? parts[2].match(SITE) : null;
+  if (parts && host && parts[1].trim()) return { name: parts[1].trim(), website: host[1].toLowerCase() };
+  return { name: text };
+}

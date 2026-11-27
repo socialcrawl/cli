@@ -9,6 +9,7 @@ import { NAME_FLOOR } from "../social-viral/index.ts";
 import type { Workflow, WorkflowArgs } from "../types.ts";
 import { PRESENCE_PLATFORMS, runPresence } from "./runner.ts";
 import type { AccountRead, PresenceInput, PresenceOutput } from "./runner.ts";
+import { splitSite } from "./presence.ts";
 
 export const SKILL = "social-presence";
 const LABEL: Record<string, string> = { linkedin: "LinkedIn", instagram: "Instagram", tiktok: "TikTok", twitter: "X", x: "X", threads: "Threads", youtube: "YouTube" };
@@ -21,7 +22,9 @@ function inputOf(args: WorkflowArgs): PresenceInput {
   const type = typeof args.flags.type === "string" ? args.flags.type : "company";
   if (type !== "company" && type !== "person") throw new UsageError('--type takes "company" or "person".');
   const website = typeof args.flags.website === "string" && args.flags.website.trim() ? args.flags.website.trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "") : undefined;
-  return { name: args.input, type, ...(website ? { website } : {}) };
+  const given = splitSite(args.input);
+  const site = website ?? given.website;
+  return { name: given.name, type, ...(site ? { website: site } : {}) };
 }
 
 /** The account as the report names it: a confirmed one by its handle; any other only from 10,000 followers or a verified badge, since a name search can find a namesake. */

@@ -35,11 +35,11 @@ function presenceApi(find: ApiBody = ACME, quoteHold = 21) {
   };
 }
 
-async function runOnce(api = presenceApi(), flags: Record<string, string> = { website: "acmenotes.example" }) {
+async function runOnce(api = presenceApi(), flags: Record<string, string> = { website: "acmenotes.example" }, input = "Acme Notes") {
   const cwd = mkdtempSync(path.join(tmpdir(), "sc-presence-"));
   const out: string[] = [];
   const err: string[] = [];
-  const code = await runWorkflow({ workflow, args: { input: "Acme Notes", flags, deep: false, now: NOW }, opts: { plan: false, yes: false, open: false, json: false, noCache: false }, kit: api, cwd, out: (l) => out.push(l), err: (l) => err.push(l) });
+  const code = await runWorkflow({ workflow, args: { input, flags, deep: false, now: NOW }, opts: { plan: false, yes: false, open: false, json: false, noCache: false }, kit: api, cwd, out: (l) => out.push(l), err: (l) => err.push(l) });
   const dir = path.join(cwd, "socialcrawl-runs", "social-presence-acme-notes-2026-11-27");
   return { code, out, err, api, read: (f: string) => readFileSync(path.join(dir, f), "utf8") };
 }
@@ -54,6 +54,13 @@ describe("social-presence: the calls", () => {
     assert.equal(find.type, "company");
     assert.equal(find.website, "acmenotes.example");
     assert.equal(find.platforms, "linkedin,instagram,tiktok,twitter,threads,youtube");
+  });
+
+  it('reads a website written into the name, as an agent passes "Acme Notes (acmenotes.example)"', async () => {
+    const r = await runOnce(presenceApi(), {}, "Acme Notes (acmenotes.example)");
+    assert.equal(r.code, EXIT.ok, r.err.join("\n"));
+    assert.equal(r.api.calls[1].params.name, "Acme Notes");
+    assert.equal(r.api.calls[1].params.website, "acmenotes.example");
   });
 
   it("searches for a person with --type person", async () => {

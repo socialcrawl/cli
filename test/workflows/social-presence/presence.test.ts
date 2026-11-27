@@ -2,10 +2,24 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { rowsOf } from "../../../src/engine/rows.ts";
-import { activityCall, activityOf, statusOf } from "../../../src/workflows/social-presence/presence.ts";
+import { activityCall, activityOf, splitSite, statusOf } from "../../../src/workflows/social-presence/presence.ts";
 import { ACME, platform, postsPage } from "./fake.ts";
 
 const byName = (name: string) => (ACME.data as { platforms: ReturnType<typeof platform>[] }).platforms.find((p) => p.platform === name)!;
+
+describe("splitSite", () => {
+  it("takes a website given in brackets, after a comma or as a link out of the name", () => {
+    assert.deepEqual(splitSite("Linear (linear.app)"), { name: "Linear", website: "linear.app" });
+    assert.deepEqual(splitSite("Linear, linear.app"), { name: "Linear", website: "linear.app" });
+    assert.deepEqual(splitSite("Linear https://www.linear.app/about"), { name: "Linear", website: "linear.app" });
+    assert.deepEqual(splitSite("Acme Notes (www.acmenotes.example)"), { name: "Acme Notes", website: "acmenotes.example" });
+  });
+  it("leaves a name with a dot in it whole", () => {
+    assert.deepEqual(splitSite("Node.js"), { name: "Node.js" });
+    assert.deepEqual(splitSite("Socket.io"), { name: "Socket.io" });
+    assert.deepEqual(splitSite("Linear"), { name: "Linear" });
+  });
+});
 
 describe("statusOf", () => {
   it("confirms an account only by a link: the site in its website field, a domain match or a cross-link", () => {
