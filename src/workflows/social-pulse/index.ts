@@ -24,6 +24,8 @@ const n = (x: number) => x.toLocaleString("en-GB");
 const pct = (share: number) => `${Math.round(share * 100)}%`;
 const dmy = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
 const metricWord = (p: Platform) => (p === "reddit" ? "score" : FLOORS[p as ViralPlatform]?.metric ?? "views");
+/** Whose usual reach a post is compared with: on Reddit its community's, elsewhere its author's. */
+const whose = (p: Platform) => (p === "reddit" ? "its community's" : "its author's");
 
 function inputOf(args: WorkflowArgs): PulseInput {
   const about = typeof args.flags.about === "string" && args.flags.about.trim() ? args.flags.about.trim() : undefined;
@@ -127,7 +129,7 @@ export function buildResult(out: PulseOutput, input: PulseInput, deep: boolean):
     const numbers: Record<string, number> = {};
     for (const [k, v] of Object.entries({ multiple: b.multiple, value: b.value, base: b.base, peers: b.peers })) if (v !== null) numbers[k] = v;
     const f = ev.add({
-      claim: `${label(i.row.platform)}: ${who(i.row)} at ${formatNumber(b.multiple ?? 0)}x its author's median ${metricWord(i.row.platform)} over ${b.peers} earlier posts`,
+      claim: `${label(i.row.platform)}: ${who(i.row)} at ${formatNumber(b.multiple ?? 0)}x ${whose(i.row.platform)} median ${metricWord(i.row.platform)} over ${b.peers} earlier posts`,
       confidence: "seen",
       numbers,
       requests: b.requestIds.length ? b.requestIds : [i.row.requestId ?? ""].filter(Boolean),
@@ -154,7 +156,7 @@ export function buildResult(out: PulseOutput, input: PulseInput, deep: boolean):
   for (const e of out.errors) ev.unknown({ what: `${e.stage}, ${e.endpoint}`, why: `the API answered ${e.status ?? "an error"}${e.requestId ? ` (${e.requestId})` : ""}: ${e.message}` });
 
   const summaryLines = [`${headline} [${f1.id}]`, `${sentiment} [${f2.id}]`, `${asks} [${f3.id}]`];
-  for (const i of viral.slice(0, 2)) summaryLines.push(`${label(i.row.platform)}: ${who(i.row)} at ${formatNumber(i.breakout.multiple ?? 0)}x its author's median ${metricWord(i.row.platform)} over ${i.breakout.peers} earlier posts${ref(i)}`);
+  for (const i of viral.slice(0, 2)) summaryLines.push(`${label(i.row.platform)}: ${who(i.row)} at ${formatNumber(i.breakout.multiple ?? 0)}x ${whose(i.row.platform)} median ${metricWord(i.row.platform)} over ${i.breakout.peers} earlier posts${ref(i)}`);
 
   const cell = (v: number | null | undefined) => (v === null || v === undefined ? "not read" : n(v));
   const shareCell = (s: WeekSummary | null, k: "positive" | "negative") => (s ? (share(s, k) === null ? "too few" : pct(share(s, k)!)) : "not read");

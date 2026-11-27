@@ -179,6 +179,20 @@ describe("social-viral: a whole run on the recorded responses", () => {
     assert.deepEqual(v.problems, []);
   });
 
+  it("compares a Reddit post with its community, not its author", async () => {
+    const api = recordedApi();
+    const session = new Session({ dir: mkdtempSync(path.join(tmpdir(), "sc-viral-")), kit: api, budget: new Budget(100), skill: "social-viral", version: "0.1.0", now: () => RUN_AT });
+    const input = { topic: "AI coding tools", since: "2026-11-19", until: "2026-11-26" };
+    const out = await runViral(session, input, { now: () => RUN_AT });
+    const item = out.result.items[0];
+    item.row = { ...item.row, platform: "reddit", community: "programming", views: null, likes: 900 };
+    item.breakout = { ...item.breakout, platform: "reddit", metric: "likes", band: "beat", multiple: 9, value: 900, base: 100, peers: 12 };
+    item.viral = true;
+    const summary = buildResult(out, input, false).report.summary.join("\n");
+    assert.match(summary, /Reddit: a post in r\/programming at 9x its community's median score over 12 earlier posts/);
+    assert.ok(!summary.includes("its author's median score"));
+  });
+
   it("prints multiples to one decimal under 100 and whole above, and medians whole", async () => {
     const r = await runOnce();
     const md = r.read("report.md");

@@ -30,6 +30,8 @@ const label = (p: Platform) => LABEL[p as ViralPlatform] ?? p;
 const n = (x: number) => x.toLocaleString("en-GB");
 const dmy = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
 const metricWord = (p: Platform) => (p === "reddit" ? "score" : FLOORS[p as ViralPlatform]?.metric ?? "views");
+/** Whose usual reach a post is compared with: on Reddit its community's, elsewhere its author's. */
+const whose = (p: Platform) => (p === "reddit" ? "its community's" : "its author's");
 
 /** A multiple or a median as the report prints it: one decimal under 100, whole above. */
 const fm = (x: number) => formatNumber(x);
@@ -160,7 +162,7 @@ export function buildResult(out: ViralRunOutput, input: PlanInput, deep: boolean
     for (const [k, v] of Object.entries({ multiple: b.multiple, value: b.value, base: b.base, peers: b.peers, settled_multiple: b.settledMultiple, over_best_peer: b.overBestPeer })) if (v !== null) numbers[k] = v;
     const notes = [b.settling ? "under 48 hours old, so its multiple can still rise" : "", b.inflatedByYoung ? "young posts in its base may raise the multiple" : "", i.flag?.flag ? FLAG_LABEL[i.flag.flag] : ""].filter(Boolean);
     const f = ev.add({
-      claim: `${label(i.row.platform)}: ${who(i.row)} at ${fm(b.multiple ?? 0)}x its author's median ${metricWord(i.row.platform)} over ${b.peers} earlier posts`,
+      claim: `${label(i.row.platform)}: ${who(i.row)} at ${fm(b.multiple ?? 0)}x ${whose(i.row.platform)} median ${metricWord(i.row.platform)} over ${b.peers} earlier posts`,
       confidence: "seen",
       numbers,
       requests: b.requestIds.length ? b.requestIds : [i.row.requestId ?? ""].filter(Boolean),
@@ -191,7 +193,7 @@ export function buildResult(out: ViralRunOutput, input: PlanInput, deep: boolean
   const summary = [`${headline} [${f1.id}]`];
   for (const i of lead.slice(0, 4)) {
     const b = i.breakout;
-    summary.push(`${label(i.row.platform)}: ${who(i.row)} at ${fm(b.multiple ?? 0)}x its author's median ${metricWord(i.row.platform)} over ${b.peers} earlier posts${ref(i)}`);
+    summary.push(`${label(i.row.platform)}: ${who(i.row)} at ${fm(b.multiple ?? 0)}x ${whose(i.row.platform)} median ${metricWord(i.row.platform)} over ${b.peers} earlier posts${ref(i)}`);
   }
 
   // Sections.
@@ -255,7 +257,7 @@ export function buildResult(out: ViralRunOutput, input: PlanInput, deep: boolean
 
   const command = `/${SKILL} "${input.topic}"`;
   const cardLines = lead.filter((i) => i.cardWorthy).slice(0, 2).map((i) => {
-    const line = `${label(i.row.platform)}: ${who(i.row)} at ${fm(i.breakout.multiple ?? 0)}x its author's usual ${metricWord(i.row.platform)}`;
+    const line = `${label(i.row.platform)}: ${who(i.row)} at ${fm(i.breakout.multiple ?? 0)}x ${whose(i.row.platform)} usual ${metricWord(i.row.platform)}`;
     return line.length > 110 ? line.slice(0, 109) + "…" : line;
   });
   const chart: BarChart = {

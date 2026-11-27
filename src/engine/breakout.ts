@@ -227,7 +227,7 @@ export function describe(b: Breakout): string {
   if (b.band === "no_metric") return `no ${b.metric} count to compare`;
   if (b.band === "base_too_small") {
     const what = b.platform === "reddit" && b.metric === "likes" ? `a median score of ${n(b.base as number)}` : `a median of ${n(b.base as number)} ${b.metric}`;
-    return `its earlier posts had ${what}, too few to compare`;
+    return `${b.platform === "reddit" ? "its community's" : "its"} earlier posts had ${what}, too few to compare`;
   }
   const notes = [
     b.settling ? "still rising" : null,
@@ -239,7 +239,7 @@ export function describe(b: Breakout): string {
   ].filter(Boolean);
   // Reddit's score is read as likes in the shared row; the line names it as the card does.
   const base = b.platform === "reddit" && b.metric === "likes" ? `median score of ${n(b.base as number)}` : `median of ${n(b.base as number)} ${b.metric}`;
-  return `${b.multiple}x its author's ${base} over ${b.peers} posts${notes.length ? ` (${notes.join("; ")})` : ""}`;
+  return `${b.multiple}x ${b.platform === "reddit" ? "its community's" : "its author's"} ${base} over ${b.peers} posts${notes.length ? ` (${notes.join("; ")})` : ""}`;
 }
 
 // ── One account at a time: what separates its winners from its losers ─────────

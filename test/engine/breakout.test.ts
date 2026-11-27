@@ -77,7 +77,7 @@ describe("the multiple", () => {
     const target = row({ platform: "reddit", id: "t", publishedAt: "2026-11-01T06:00:00Z", views: null, likes: 500 });
     const b = breakoutOf(target, [...earlier, target], { now });
     assert.equal(b.metric, "likes");
-    assert.equal(describeB(b), "5x its author's median score of 100 over 8 posts");
+    assert.equal(describeB(b), "5x its community's median score of 100 over 8 posts");
   });
 
   it("in discovery mode takes the nearest 20 posts on either side and counts the young ones", () => {
@@ -181,9 +181,10 @@ describe("a base too small to compare against", () => {
     const small = breakoutOf(target({ platform: "reddit", views: null, likes: 300 }), series(10, () => 0, { platform: "reddit", views: null, likes: 5 }), { now: NOW, metric: "likes" });
     assert.equal(small.band, "beat");
     assert.equal(small.multiple, 60);
+    assert.equal(describeB(small), "60x its community's median score of 5 over 10 posts");
     const dead = breakoutOf(target({ platform: "reddit", views: null, likes: 300 }), series(10, () => 0, { platform: "reddit", views: null, likes: 1 }), { now: NOW, metric: "likes" });
     assert.equal(dead.band, "base_too_small");
-    assert.equal(describeB(dead), "its earlier posts had a median score of 1, too few to compare");
+    assert.equal(describeB(dead), "its community's earlier posts had a median score of 1, too few to compare");
   });
 });
 
