@@ -146,7 +146,7 @@ export function buildResult(input: BuildInput): Built {
         const all = xa ? xa.coded.length : a.posts.length + a.others;
         const of = a.ofTotal !== null ? ` of the ${n(a.ofTotal)} on its profile` : "";
         return all > a.posts.length
-          ? cite(`This run read ${n(all)} posts${of}, from ${dmy(a.first)} to ${dmy(a.last)}; ${n(a.posts.length)} of them are its own posts and the rest ${xa ? "replies and reposts" : "other people's posts in its feed"}.`, "seen", a.timelineRequests)
+          ? cite(`This run read ${n(all)} posts${of}, from ${dmy(a.first)} to ${dmy(a.last)}; ${n(a.posts.length)} of them are its own posts and the rest ${xa ? "quote posts, replies and reposts" : "other people's posts in its feed"}.`, "seen", a.timelineRequests)
           : cite(`This run read ${n(a.posts.length)} posts${of}, from ${dmy(a.first)} to ${dmy(a.last)}.`, "seen", a.timelineRequests);
       })(),
     ];
@@ -196,6 +196,12 @@ export function buildResult(input: BuildInput): Built {
     }
     for (const u of a.unusual.slice(0, 3)) lines.push(cite(`The ${u.row.video ? "video" : "post"} of ${dmy(u.row.publishedAt)} has ${u.perThousand} likes per 1,000 views against the account's median of ${u.accountMedian}: views far ahead of likes, so it may have been promoted. Inferred from the counts; an advert is not visible in public data.`, "inferred", [u.row.requestId]));
     if (a.baseTooSmall) lines.push(cite(`${n(a.baseTooSmall)} posts have no multiple: their earlier posts had too few views to compare (a median under 100 views, or under 10 likes where the platform counts no views).`, "seen", a.timelineRequests));
+    const xq = xOf(a);
+    if (xq) {
+      const quotes = xq.coded.filter((c) => c.kind === "quote");
+      const own = quotes.filter((c) => c.quoted_author.toLowerCase() === a.handle.toLowerCase()).length;
+      if (quotes.length) lines.push(cite(`${n(quotes.length)} of its own posts quote another post, ${n(own)} of them its own; the quoted accounts are listed in data/x-coded.csv, not named here.`, "seen", [...new Set(quotes.map((c) => c.request_no))]));
+    }
     if (a.tooFew) lines.push(cite(`${n(a.tooFew)} posts have no multiple: fewer than 8 comparable posts came before them in the read.`, "seen", a.timelineRequests));
     return lines;
   });
@@ -317,7 +323,7 @@ export function buildResult(input: BuildInput): Built {
     const caveat = "on music-only videos the transcript lane has returned words that were never spoken; check a surprising opening by ear";
     return a.words.map((w) =>
       w.opening
-        ? cite(`${w.kind === "screen_text" ? "On screen" : "Spoken"}, post ${w.postId}: ${w.words} words, opening "${cut(w.opening, 120)}".`, "seen", [w.requestId], w.kind === "transcript" ? [caveat] : [])
+        ? cite(`${w.kind === "screen_text" ? "On screen" : "Spoken"}, post ${w.postId}: ${w.words} words, opening "${cut(w.opening, 120)}".`, "seen", [w.requestId], w.kind === "transcript" && a.platform !== "x" ? [caveat] : [])
         : cite(`Post ${w.postId}: no ${w.kind === "screen_text" ? "on-screen text" : "transcript"} (${w.reason}).`, "unknown", [w.requestId]),
     );
   });
@@ -372,7 +378,8 @@ export function buildResult(input: BuildInput): Built {
 
   // ── What this run could not see
   for (const l of input.limits) ev.unknown({ what: `${l.stage} (${l.endpoint})`, why: l.reason });
-  for (const e of input.errors) ev.unknown({ what: `${e.stage} (${e.endpoint})`, why: `${e.status ?? "no status"}: ${firstSentence(e.message)}${e.requestId ? ` (${e.requestId})` : ""}` });
+  // A video with no captions is a fact the Words section states, not a gap in the read.
+  for (const e of input.errors.filter((x) => !/no captions/i.test(x.message))) ev.unknown({ what: `${e.stage} (${e.endpoint})`, why: `${e.status ?? "no status"}: ${firstSentence(e.message)}${e.requestId ? ` (${e.requestId})` : ""}` });
   for (const xa of input.x) {
     const unseen = xa.coded.filter((c) => c.quote_unseen).length;
     if (unseen) ev.unknown({ what: `${n(unseen)} text-only posts of @${xa.account.handle} may be quote posts`, why: "the API returns no quoted post on X rows yet, so what they quote and whom is unseen", check: "open the post on X" });

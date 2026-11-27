@@ -63,9 +63,9 @@ function quote(args: WorkflowArgs): WorkflowQuote {
     }
   }
   lines.push(`Each stage stops at its share; the report says what it did not read.`);
-  // Measured 27/11/2026 on @notionhq, uncached: a default run 231 s, a deep run 19 minutes.
+  // Measured 27/11/2026 on @notionhq, uncached: default runs 231 s and 300 s, a deep run 19 minutes.
   // The note prints after the price on every run.
-  const note = args.deep ? "It takes about 20 minutes: a deep run reads the whole history and every top post's people." : "It takes about 4 minutes.";
+  const note = args.deep ? "It takes about 20 minutes: a deep run reads the whole history and every top post's people." : "It takes about 4 to 5 minutes.";
   return { expected: Math.min(expected, total), max: each * targets.length, lines, note };
 }
 

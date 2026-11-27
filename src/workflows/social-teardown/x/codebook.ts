@@ -31,6 +31,10 @@ export interface XPost {
   conversationId: string | null;
   retweetOf: { id: string; author: string; text: string } | null;
   articleUrl: string | null;
+  /** The post this one quotes (ext.quoted_post, read since 27/11/2026), or null. */
+  quoted: { id: string; author: string } | null;
+  /** True when the row carries the quoted-post field at all; older rows do not. */
+  quotedRead: boolean;
   requestId: string;
 }
 
@@ -44,8 +48,11 @@ export interface CodedPost {
   weekday_utc: string;
   hour_utc: number;
   kind: Kind;
-  /** The API carries no quoted-post field, so a quote post cannot be told from a text post. */
+  /** A text post on a row with no quoted-post field: it may be a quote post nobody can see. */
   quote_unseen: boolean;
+  /** The quoted post's author and id, for a quote post. */
+  quoted_author: string;
+  quoted_id: string;
   format: string;
   video_seconds: number | null;
   text: string;
@@ -108,6 +115,8 @@ export function toXPost(post: any, requestId: string): XPost {
     conversationId: x.conversation_id ?? null,
     retweetOf: rt ? { id: String(rt.id), author: rt.author?.username ?? "", text: rt.text ?? "" } : null,
     articleUrl: x.article_url ?? null,
+    quoted: x.quoted_post?.id ? { id: String(x.quoted_post.id), author: String(x.quoted_post.author?.username ?? "") } : null,
+    quotedRead: Object.prototype.hasOwnProperty.call(x, "quoted_post"),
     requestId,
   };
 }
@@ -264,6 +273,7 @@ export function kindOf(p: XPost, handle: string, selfThreadHeads: Set<string>): 
     return "thread_part";
   }
   if (p.inReplyToUser) return "reply_other";
+  if (p.quoted) return "quote";
   if (selfThreadHeads.has(p.id)) return "thread_head";
   return "original";
 }
@@ -356,7 +366,9 @@ export function codePosts(posts: XPost[], handle: string): CodedPost[] {
       weekday_utc: WEEKDAYS[d.getUTCDay()],
       hour_utc: d.getUTCHours(),
       kind,
-      quote_unseen: (kind === "original" || kind === "thread_head") && format === "text",
+      quote_unseen: (kind === "original" || kind === "thread_head") && format === "text" && !p.quotedRead,
+      quoted_author: p.quoted?.author ?? "",
+      quoted_id: p.quoted?.id ?? "",
       format,
       video_seconds: format === "video" ? p.videoSeconds : null,
       text: p.text,
@@ -396,7 +408,7 @@ export function codePosts(posts: XPost[], handle: string): CodedPost[] {
 }
 
 export const CSV_COLUMNS: (keyof CodedPost)[] = [
-  "account", "post_id", "url", "created_utc", "weekday_utc", "hour_utc", "kind", "quote_unseen", "format", "video_seconds",
+  "account", "post_id", "url", "created_utc", "weekday_utc", "hour_utc", "kind", "quote_unseen", "quoted_author", "quoted_id", "format", "video_seconds",
   "text", "chars", "hook", "body_shape", "artefact", "artefact_name", "offer_free", "cta", "gated", "partner_tag", "mentions",
   "links", "views", "likes", "reposts", "replies", "quotes", "bookmarks", "bookmark_per_like", "repost_per_like",
   "reply_per_like", "outlier_x", "launch_id", "topic_tags", "tone", "reply_sample_read", "transcript_read", "request_no",

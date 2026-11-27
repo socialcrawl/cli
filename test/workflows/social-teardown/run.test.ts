@@ -66,7 +66,7 @@ describe("the social-teardown workflow", () => {
     const d = await workflow.quote(args("@notionhq"));
     const deep = await workflow.quote(args("@notionhq", true));
     // The note prints after the price on every run; lines print only with --plan.
-    assert.match(d.note ?? "", /about 4 minutes/);
+    assert.match(d.note ?? "", /about 4 to 5 minutes/);
     assert.match(deep.note ?? "", /about 20 minutes/);
     assert.ok(deep.expected >= 400 && deep.expected <= 520, `deep expected ${deep.expected}; measured 438`);
   });

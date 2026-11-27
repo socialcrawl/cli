@@ -25,7 +25,7 @@ function post(over: Partial<XPost>): XPost {
   return {
     id: "1", url: "https://x.com/a/status/1", createdUtc: "2026-10-01T11:00:00.000Z", text: "", author: "acme",
     authorFollowers: 1000, views: 100, likes: 10, reposts: 1, replies: 1, quotes: 0, bookmarks: 5, mediaTypes: [],
-    videoSeconds: null, inReplyToUser: null, inReplyToId: null, conversationId: null, retweetOf: null, articleUrl: null,
+    videoSeconds: null, inReplyToUser: null, inReplyToId: null, conversationId: null, retweetOf: null, articleUrl: null, quoted: null, quotedRead: false,
     requestId: "req-test", ...over,
   };
 }
