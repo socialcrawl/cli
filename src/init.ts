@@ -5,12 +5,15 @@ import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { AGENT_NAMES, detectAgents, installSkills, installTargets } from "./agents.ts";
+import { AGENT_NAMES, detectAgents, foreignWorkflowSkills, installSkills, installTargets, removeRetired } from "./agents.ts";
+import type { Agent } from "./agents.ts";
 import { tokenFetch } from "./auth.ts";
 import { CONFIG_LABEL, credentialsFrom, maskKey, readConfig, saveConfig } from "./config.ts";
 import type { Credentials } from "./config.ts";
 import { ApiError, createKit, login, pollLogin, renewLogin, startLogin } from "./kit/kit.ts";
 import { EXIT } from "./run.ts";
+import { WORKFLOWS_REPO, cleanEnv, parseInstalled, skillsAddArgs } from "./skills-add.ts";
+import type { SkillsAdd } from "./skills-add.ts";
 import { WORKFLOWS_ARCHIVE, extractSkills } from "./tarball.ts";
 import { VERSION } from "./version.ts";
 
@@ -27,6 +30,8 @@ export interface InitDeps {
   sleep?: (ms: number) => Promise<void>;
   /** A local copy of the workflows (the repository, or its skills/ folder) instead of GitHub. */
   skillsFrom?: string;
+  /** Runs `npx skills add`; without it, init downloads and copies the workflows itself. */
+  skillsAdd?: SkillsAdd;
 }
 
 export interface InitOptions {
@@ -158,6 +163,22 @@ async function skillsSource(deps: InitDeps): Promise<string | null> {
   }
 }
 
+/**
+ * Install with `npx skills add socialcrawl/workflows`, which counts the install on skills.sh.
+ * Skipped for a local --skills-from copy, and when a socialcrawl-<task> folder from somewhere else
+ * is in the way, since that installer replaces folders of the same name. False means copy instead.
+ */
+async function viaInstaller(agents: Agent[], targets: { dir: string; agents: string[] }[], deps: InitDeps, opts: InitOptions): Promise<boolean> {
+  if (deps.skillsFrom || !deps.skillsAdd) return false;
+  const places = [...targets.map((t) => t.dir), ...(opts.project ? [] : [...agents.map((a) => a.installerDir), path.join(deps.home, ".agents", "skills")])];
+  if (foreignWorkflowSkills(places).length) return false;
+  const r = await deps.skillsAdd(skillsAddArgs(agents.map((a) => a.id), !opts.project), { env: cleanEnv(deps.env), cwd: opts.project ? deps.cwd : deps.home });
+  const names = r.code === 0 ? parseInstalled(r.stdout) : null;
+  if (!names?.length) return false;
+  deps.out(`Installed ${names.length} workflow${names.length === 1 ? "" : "s"} for ${agents.map((a) => a.name).join(", ")} with npx skills add ${WORKFLOWS_REPO}.`);
+  return true;
+}
+
 export async function runInit(deps: InitDeps, opts: InitOptions): Promise<number> {
   const key = await setUpKey(deps, opts);
   if (key === "started") return EXIT.ok;
@@ -168,15 +189,26 @@ export async function runInit(deps: InitDeps, opts: InitOptions): Promise<number
     if (!agents.length) {
       deps.out(`No coding agent found (${AGENT_NAMES.join(", ")}). The workflows run from this terminal too.`);
     } else {
-      const source = await skillsSource(deps);
-      if (source) {
-        for (const t of installTargets(agents, { home: deps.home, project: opts.project ? deps.cwd : null })) {
-          const r = installSkills(source, t.dir);
-          deps.out(`Installed ${r.installed.length} workflow${r.installed.length === 1 ? "" : "s"} for ${t.agents.join(", ")} in ${t.dir}.`);
-          for (const n of r.kept) deps.out(`Left ${path.join(t.dir, n)} as it was: a skill of that name from somewhere else is already there.`);
-          if (r.removed.length) deps.out(`Removed the skills 0.1.0 installed under their old names (${r.removed.join(", ")}). They are socialcrawl-<task> now.`);
-          if (r.removed.includes("socialcrawl")) deps.out("If you used the SocialCrawl API skill, version 0.1.0 replaced it. Get it back with: npx skills add socialcrawl/skills -g");
+      const targets = installTargets(agents, { home: deps.home, project: opts.project ? deps.cwd : null });
+      const removed: string[] = [];
+      let done = await viaInstaller(agents, targets, deps, opts);
+      if (!done) {
+        const source = await skillsSource(deps);
+        if (source) {
+          for (const t of targets) {
+            const r = installSkills(source, t.dir);
+            deps.out(`Installed ${r.installed.length} workflow${r.installed.length === 1 ? "" : "s"} for ${t.agents.join(", ")} in ${t.dir}.`);
+            for (const n of r.kept) deps.out(`Left ${path.join(t.dir, n)} as it was: a skill of that name from somewhere else is already there.`);
+            removed.push(...r.removed);
+          }
+          done = true;
         }
+      }
+      if (done) {
+        for (const t of targets) removed.push(...removeRetired(t.dir));
+        const names = [...new Set(removed)];
+        if (names.length) deps.out(`Removed the skills 0.1.0 installed under their old names (${names.join(", ")}). They are socialcrawl-<task> now.`);
+        if (names.includes("socialcrawl")) deps.out("If you used the SocialCrawl API skill, version 0.1.0 replaced it. Get it back with: npx skills add socialcrawl/skills -g");
         saveConfig(deps.home, { installed: agents.map((a) => a.id) });
         installedFor = agents.length;
       }

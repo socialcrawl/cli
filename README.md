@@ -12,7 +12,7 @@ To add the workflow skills to your agents without the CLI, run `npx skills add s
 
 1. Uses `SOCIALCRAWL_API_KEY` or a key you saved before. If there is none, it asks you to paste a key, or to press Enter and sign in by email with a link and a 6-digit code (a free key with 100 credits, no card).
 2. Checks the key with a free balance read before it saves it to `~/.socialcrawl/config.json`, never into a project folder.
-3. Finds the coding agents on your machine (Claude Code, Cursor, Codex, Gemini CLI, GitHub Copilot) and installs the workflows from [socialcrawl/workflows](https://github.com/socialcrawl/workflows) into each one. It never replaces a skill it did not install, and it removes the folders 0.1.0 installed under the old names only when 0.1.0 put them there. So the [SocialCrawl API skill](https://github.com/socialcrawl/skills) and the [MCP server](https://github.com/socialcrawl/mcp) keep working beside the workflows, on the same account.
+3. Finds the coding agents on your machine (Claude Code, Cursor, Codex, Gemini CLI, GitHub Copilot) and installs the workflows from [socialcrawl/workflows](https://github.com/socialcrawl/workflows) into each one with `npx skills add socialcrawl/workflows`, so `npx skills update` keeps them current. If that command fails, or a `socialcrawl-<task>` skill from somewhere else is already there, it downloads the workflows and copies them itself, leaving that skill as it was. It touches no skill outside the `socialcrawl-<task>` names, apart from removing the folders 0.1.0 installed under the old names, only where 0.1.0 put them. So the [SocialCrawl API skill](https://github.com/socialcrawl/skills) and the [MCP server](https://github.com/socialcrawl/mcp) keep working beside the workflows, on the same account.
 
 Then ask your agent "what went viral about AI coding tools this week?", or run a workflow yourself:
 
@@ -105,8 +105,9 @@ Every run prints its price first, then runs. A run never spends more than its bu
 
 - `~/.socialcrawl/config.json`, readable by you only where the system allows it: your API key, or the tokens of an email sign-in (refreshed when they expire), and the list of agents `init` installed into. Delete the folder to remove them.
 - Run folders where you run the command: the posts, comments and numbers the run read, including other people's public posts. They stay on your machine.
-- Each workflow's `SKILL.md` and `README.md`, copied into your agents' skills folders.
-- Requests go to `https://www.socialcrawl.dev/v1` with your key, and name the client as `socialcrawl-cli/<version>`. `init` also downloads the workflows from GitHub. Nothing else is sent: no analytics, no telemetry.
+- Each workflow's `SKILL.md` and `README.md`, in your agents' skills folders.
+- Requests go to `https://www.socialcrawl.dev/v1` with your key, and name the client as `socialcrawl-cli/<version>`. This CLI sends no analytics of its own.
+- `init` runs `npx skills add socialcrawl/workflows`, which fetches the workflows from GitHub and, like any install with that command, tells skills.sh which skills were installed for which agents, without your key or any account detail. Set `DO_NOT_TRACK=1` or `DISABLE_TELEMETRY=1` to stop that count.
 
 ## Develop
 

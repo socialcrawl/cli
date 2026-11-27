@@ -12,6 +12,8 @@ import { tokenFetch } from "./auth.ts";
 import { credentialsFrom, maskKey, readConfig, saveConfig } from "./config.ts";
 import type { Credentials } from "./config.ts";
 import { runInit } from "./init.ts";
+import { runSkillsAdd } from "./skills-add.ts";
+import type { SkillsAdd } from "./skills-add.ts";
 import { createKit, OutOfCredits, offerLines } from "./kit/kit.ts";
 import { EXIT, runWorkflow } from "./run.ts";
 import { VERSION } from "./version.ts";
@@ -33,6 +35,8 @@ export interface MainDeps {
   /** False when there is no terminal to ask in. */
   interactive?: boolean;
   ask?: (question: string, opts?: { hidden?: boolean }) => Promise<string>;
+  /** Runs `npx skills add` for init; tests leave it out, so init copies the workflows itself. */
+  skillsAdd?: SkillsAdd;
 }
 
 const NO_KEY = [
@@ -147,6 +151,7 @@ export async function main(argv: string[], deps: MainDeps): Promise<number> {
             interactive: deps.interactive ?? false,
             ask: deps.ask ?? (async () => ""),
             ...(parsed.skillsFrom ? { skillsFrom: parsed.skillsFrom } : {}),
+            ...(deps.skillsAdd ? { skillsAdd: deps.skillsAdd } : {}),
           },
           { yes: parsed.yes, install: parsed.install, project: parsed.project, ...(parsed.email ? { email: parsed.email } : {}) },
         );
@@ -229,6 +234,7 @@ if (isEntry()) {
     openFile,
     interactive: Boolean(process.stdin.isTTY && process.stdout.isTTY),
     ask: askLine,
+    skillsAdd: runSkillsAdd,
   });
   process.exitCode = code;
 }

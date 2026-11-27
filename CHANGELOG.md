@@ -2,6 +2,11 @@
 
 Changes to the `socialcrawl` package. Dates are DD/MM/YYYY. A release is published by pushing its tag; see "Release" in the README.
 
+## 0.1.2 (27/11/2026)
+
+- `socialcrawl init` installs the workflows with `npx skills add socialcrawl/workflows` for the agents it finds, so `npx skills update` keeps them current and each install counts on the skill's page at skills.sh. If that command fails, or a `socialcrawl-<task>` skill from somewhere else is already there, it downloads the workflows and copies them itself, as before.
+- The README says what that installer sends to skills.sh, and that `DO_NOT_TRACK=1` stops it.
+
 ## 0.1.1 (27/11/2026)
 
 - `socialcrawl init` never replaces a skill it did not install. A skill of the same name from somewhere else, such as the SocialCrawl API skill (`socialcrawl`, from socialcrawl/skills), is left as it was and named in the output.

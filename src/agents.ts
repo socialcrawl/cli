@@ -10,6 +10,8 @@ export interface Agent {
   dir: string;
   /** The skills folder inside a project. */
   projectDir: string;
+  /** The global folder `npx skills add -g` writes for this agent. */
+  installerDir: string;
 }
 
 interface AgentSpec {
@@ -18,22 +20,23 @@ interface AgentSpec {
   home: (home: string, env: Record<string, string | undefined>) => string;
   dir: (home: string) => string;
   projectDir: string;
+  installerDir: (home: string) => string;
 }
 
 const SHARED = (home: string) => path.join(home, ".agents", "skills");
 
 const AGENTS: AgentSpec[] = [
-  { id: "claude-code", name: "Claude Code", home: (h) => path.join(h, ".claude"), dir: (h) => path.join(h, ".claude", "skills"), projectDir: path.join(".claude", "skills") },
-  { id: "cursor", name: "Cursor", home: (h) => path.join(h, ".cursor"), dir: (h) => path.join(h, ".cursor", "skills"), projectDir: path.join(".agents", "skills") },
-  { id: "codex", name: "Codex", home: (h, env) => env.CODEX_HOME || path.join(h, ".codex"), dir: SHARED, projectDir: path.join(".agents", "skills") },
-  { id: "gemini-cli", name: "Gemini CLI", home: (h) => path.join(h, ".gemini"), dir: SHARED, projectDir: path.join(".agents", "skills") },
-  { id: "github-copilot", name: "GitHub Copilot", home: (h) => path.join(h, ".copilot"), dir: SHARED, projectDir: path.join(".agents", "skills") },
+  { id: "claude-code", name: "Claude Code", home: (h) => path.join(h, ".claude"), dir: (h) => path.join(h, ".claude", "skills"), projectDir: path.join(".claude", "skills"), installerDir: (h) => path.join(h, ".claude", "skills") },
+  { id: "cursor", name: "Cursor", home: (h) => path.join(h, ".cursor"), dir: (h) => path.join(h, ".cursor", "skills"), projectDir: path.join(".agents", "skills"), installerDir: (h) => path.join(h, ".cursor", "skills") },
+  { id: "codex", name: "Codex", home: (h, env) => env.CODEX_HOME || path.join(h, ".codex"), dir: SHARED, projectDir: path.join(".agents", "skills"), installerDir: SHARED },
+  { id: "gemini-cli", name: "Gemini CLI", home: (h) => path.join(h, ".gemini"), dir: SHARED, projectDir: path.join(".agents", "skills"), installerDir: (h) => path.join(h, ".gemini", "skills") },
+  { id: "github-copilot", name: "GitHub Copilot", home: (h) => path.join(h, ".copilot"), dir: SHARED, projectDir: path.join(".agents", "skills"), installerDir: (h) => path.join(h, ".copilot", "skills") },
 ];
 
 export const AGENT_NAMES = AGENTS.map((a) => a.name);
 
 export function detectAgents(home: string, env: Record<string, string | undefined>): Agent[] {
-  return AGENTS.filter((a) => existsSync(a.home(home, env))).map((a) => ({ id: a.id, name: a.name, dir: a.dir(home), projectDir: a.projectDir }));
+  return AGENTS.filter((a) => existsSync(a.home(home, env))).map((a) => ({ id: a.id, name: a.name, dir: a.dir(home), projectDir: a.projectDir, installerDir: a.installerDir(home) }));
 }
 
 /** One folder per place to write, with the agents that read it. */
@@ -95,7 +98,25 @@ export function installSkills(source: string, dest: string): { installed: string
     cpSync(path.join(source, n), target, { recursive: true });
     installed.push(n);
   }
-  const removed = RETIRED.filter((n) => !names.includes(n) && ours(path.join(dest, n)));
+  return { installed, kept, removed: removeRetired(dest) };
+}
+
+/** Remove the folders 0.1.0 installed under the old names, only where 0.1.0 put them. */
+export function removeRetired(dest: string): string[] {
+  const removed = RETIRED.filter((n) => ours(path.join(dest, n)));
   for (const n of removed) rmSync(path.join(dest, n), { recursive: true, force: true });
-  return { installed, kept, removed };
+  return removed;
+}
+
+/** socialcrawl-<task> folders in these places that did not come from socialcrawl/workflows. */
+export function foreignWorkflowSkills(dirs: string[]): string[] {
+  const out: string[] = [];
+  for (const d of new Set(dirs)) {
+    if (!existsSync(d)) continue;
+    for (const n of readdirSync(d)) {
+      const p = path.join(d, n);
+      if (n.startsWith("socialcrawl-") && existsSync(path.join(p, "SKILL.md")) && !ours(p)) out.push(p);
+    }
+  }
+  return out;
 }

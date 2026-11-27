@@ -235,6 +235,120 @@ describe("init: the agents", () => {
     assert.ok(!out.some((l) => l.includes("socialcrawl/skills")), out.join("\n"));
   });
 
+  it("installs through npx skills add socialcrawl/workflows, so each install counts on skills.sh", async () => {
+    const calls: { args: string[]; env: Record<string, string | undefined>; cwd: string }[] = [];
+    const fetched: string[] = [];
+    const { d, out, home } = deps({ skillsFrom: undefined, env: { npm_command: "exec", INIT_CWD: "/x", PATH: "/bin" } });
+    const realFetch = d.fetch;
+    d.fetch = async (u, init) => {
+      fetched.push(String(u));
+      return realFetch(u, init);
+    };
+    d.skillsAdd = async (args, o) => {
+      calls.push({ args, ...o });
+      return { code: 0, stdout: JSON.stringify([{ name: "socialcrawl-viral", status: "installed" }, { name: "socialcrawl-pulse", status: "installed" }]) };
+    };
+    saveConfig(home, { apiKey: "sc_Good_notarealkey1234" });
+    mkdirSync(path.join(home, ".claude"));
+    mkdirSync(path.join(home, ".codex"));
+    assert.equal(await runInit(d, { yes: false, install: true, project: false }), EXIT.ok);
+    assert.equal(calls.length, 1);
+    assert.deepEqual(calls[0]!.args, ["-y", "skills", "add", "socialcrawl/workflows", "--skill", "*", "--agent", "claude-code", "codex", "--global", "--yes", "--json"]);
+    assert.deepEqual(calls[0]!.env, { PATH: "/bin" });
+    assert.equal(calls[0]!.cwd, home);
+    assert.ok(!fetched.some((u) => u.includes("codeload.github.com")), "no archive download");
+    assert.ok(out.some((l) => l === "Installed 2 workflows for Claude Code, Codex with npx skills add socialcrawl/workflows."), out.join("\n"));
+    assert.deepEqual(readConfig(home).installed, ["claude-code", "codex"]);
+  });
+
+  it("runs npx skills add in the project, without --global, for init --project", async () => {
+    const calls: { args: string[]; cwd: string }[] = [];
+    const { d, home } = deps({ skillsFrom: undefined });
+    d.skillsAdd = async (args, o) => {
+      calls.push({ args, cwd: o.cwd });
+      return { code: 0, stdout: '[{"name":"socialcrawl-viral","status":"installed"}]' };
+    };
+    saveConfig(home, { apiKey: "sc_Good_notarealkey1234" });
+    mkdirSync(path.join(home, ".claude"));
+    await runInit(d, { yes: false, install: true, project: true });
+    assert.ok(!calls[0]!.args.includes("--global"));
+    assert.equal(calls[0]!.cwd, d.cwd);
+  });
+
+  /** Records every URL; GitHub's archive answers 404, the API answers as usual. */
+  function noArchive(d: InitDeps): string[] {
+    const fetched: string[] = [];
+    const api = d.fetch;
+    d.fetch = async (u, init) => {
+      fetched.push(String(u));
+      return String(u).includes("codeload.github.com") ? new Response("", { status: 404 }) : api(u, init);
+    };
+    return fetched;
+  }
+
+  it("when npx skills add fails, downloads the workflows and copies them itself", async () => {
+    const { d, out, home } = deps({ skillsFrom: undefined });
+    const fetched = noArchive(d);
+    d.skillsAdd = async () => ({ code: 1, stdout: "" });
+    saveConfig(home, { apiKey: "sc_Good_notarealkey1234" });
+    mkdirSync(path.join(home, ".claude"));
+    await runInit(d, { yes: false, install: true, project: false });
+    assert.ok(fetched.some((u) => u.includes("codeload.github.com/socialcrawl/workflows")), fetched.join("\n"));
+    assert.ok(out.some((l) => /Could not download the workflows/.test(l)), out.join("\n"));
+  });
+
+  it("treats output that installed nothing as a failure and copies the workflows itself", async () => {
+    const { d, home } = deps({ skillsFrom: undefined });
+    const fetched = noArchive(d);
+    d.skillsAdd = async () => ({ code: 0, stdout: "[]" });
+    saveConfig(home, { apiKey: "sc_Good_notarealkey1234" });
+    mkdirSync(path.join(home, ".claude"));
+    await runInit(d, { yes: false, install: true, project: false });
+    assert.ok(fetched.some((u) => u.includes("codeload.github.com")));
+  });
+
+  it("does not run npx skills add when a socialcrawl- skill from somewhere else is in the way, and keeps that skill", async () => {
+    let called = false;
+    const { d, home } = deps({ skillsFrom: undefined });
+    const fetched = noArchive(d);
+    d.skillsAdd = async () => {
+      called = true;
+      return { code: 0, stdout: "[]" };
+    };
+    saveConfig(home, { apiKey: "sc_Good_notarealkey1234" });
+    mkdirSync(path.join(home, ".claude", "skills", "socialcrawl-viral"), { recursive: true });
+    writeFileSync(path.join(home, ".claude", "skills", "socialcrawl-viral", "SKILL.md"), "mine");
+    await runInit(d, { yes: false, install: true, project: false });
+    assert.equal(called, false);
+    assert.equal(readFileSync(path.join(home, ".claude", "skills", "socialcrawl-viral", "SKILL.md"), "utf8"), "mine");
+    assert.ok(fetched.some((u) => u.includes("codeload.github.com")), "copies the workflows itself instead");
+  });
+
+  it("uses a local --skills-from copy as it is, without npx skills add", async () => {
+    let called = false;
+    const { d, home } = deps();
+    d.skillsAdd = async () => {
+      called = true;
+      return { code: 0, stdout: "[]" };
+    };
+    saveConfig(home, { apiKey: "sc_Good_notarealkey1234" });
+    mkdirSync(path.join(home, ".claude"));
+    await runInit(d, { yes: false, install: true, project: false });
+    assert.equal(called, false);
+    assert.ok(existsSync(path.join(home, ".claude", "skills", "socialcrawl-viral", "SKILL.md")));
+  });
+
+  it("still removes the 0.1.0 folders after installing through npx skills add", async () => {
+    const { d, out, home } = deps({ skillsFrom: undefined });
+    d.skillsAdd = async () => ({ code: 0, stdout: '[{"name":"socialcrawl-viral","status":"installed"}]' });
+    saveConfig(home, { apiKey: "sc_Good_notarealkey1234" });
+    mkdirSync(path.join(home, ".claude", "skills", "socialcrawl"), { recursive: true });
+    writeFileSync(path.join(home, ".claude", "skills", "socialcrawl", "SKILL.md"), "---\nname: socialcrawl\nmetadata:\n  source: https://github.com/socialcrawl/workflows\n---\n");
+    await runInit(d, { yes: false, install: true, project: false });
+    assert.ok(!existsSync(path.join(home, ".claude", "skills", "socialcrawl")));
+    assert.ok(out.some((l) => l.includes("npx skills add socialcrawl/skills -g")), out.join("\n"));
+  });
+
   it("says so when it finds no agent, and points at the terminal commands", async () => {
     const { d, out, home } = deps();
     saveConfig(home, { apiKey: "sc_Good_notarealkey1234" });
