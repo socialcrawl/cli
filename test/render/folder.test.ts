@@ -34,6 +34,17 @@ describe("writeRunFolder", () => {
     assert.equal(ev.findings.length, 2);
   });
 
+  it("keeps post text from running as a spreadsheet formula", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "sc-run-"));
+    const run = sampleRun();
+    run.tables = { posts: { columns: ["text", "views"], rows: [{ text: "=HYPERLINK(\"x\")", views: -3 }, { text: "@everyone look", views: 5 }, { text: "fine", views: 1 }] } };
+    writeRunFolder(dir, run);
+    const csv = readFileSync(path.join(dir, "data", "posts.csv"), "utf8");
+    assert.ok(csv.includes(`"'=HYPERLINK(""x"")",-3`), csv);
+    assert.ok(csv.includes("'@everyone look,5"), csv);
+    assert.ok(csv.includes("fine,1"), csv);
+  });
+
   it("keeps a table name inside data/", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "sc-run-"));
     const run = sampleRun();

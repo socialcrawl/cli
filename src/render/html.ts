@@ -28,10 +28,12 @@ a.tile:hover{background:${COLOR.band.css}}
 .tile .l{font:12px/1.45 ${FONT_MONO};color:${COLOR.muted.css}}
 figure{margin:24px 0;padding:24px;border:1px solid ${COLOR.lineSoft.css};border-radius:14px;overflow-x:auto}
 figcaption{font-weight:500;margin-bottom:16px}
-figure svg{display:block;max-width:100%;height:auto}
+figure svg{display:block;min-width:560px;width:100%;max-width:960px;height:auto}
 figure svg a:hover rect{fill:${COLOR.ink.css}}
-table{border-collapse:collapse;width:100%;font-size:14px;margin:16px 0;display:block;overflow-x:auto}
+.table-wrap{overflow-x:auto;margin:16px 0}
+table{border-collapse:collapse;width:100%;font-size:14px}
 th,td{text-align:left;padding:8px 12px;border-bottom:1px solid ${COLOR.lineSoft.css};vertical-align:top}
+td.num,th.num{text-align:center;white-space:nowrap}
 th{font:12px/1.45 ${FONT_MONO};color:${COLOR.muted.css};font-weight:500;border-bottom-color:${COLOR.line.css}}
 code,pre{font:13px/1.45 ${FONT_MONO}}
 code{background:${COLOR.band.css};padding:1px 4px;border-radius:4px}
@@ -74,7 +76,7 @@ function chartsHtml(run: RunOutput): string {
 function evidenceHtml(run: RunOutput): string {
   const items = run.report.evidence.findings.map((f) => {
     const meta = [CONFIDENCE_LABEL[f.confidence], f.requests.length ? `requests ${f.requests.join(", ")}` : "no request", ...(f.method ? [f.method] : []), ...f.limitations].map(esc).join(" · ");
-    return `<li id="${esc(f.id)}"><span class="id">${esc(f.id)}</span>${esc(f.claim)}<div class="m">${meta}</div></li>`;
+    return `<li id="${esc(f.id)}"><span class="id">${esc(f.id)}</span> ${esc(f.claim)}<div class="m">${meta}</div></li>`;
   });
   return items.length ? `<h2>Evidence</h2><ol class="ev">${items.join("")}</ol>` : "";
 }

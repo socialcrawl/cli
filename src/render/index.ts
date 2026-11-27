@@ -10,6 +10,16 @@ import type { RunOutput } from "./types.ts";
 
 export const RUN_FILES = ["report.html", "report.md", "card.svg", "card.md", "responses.jsonl", "evidence.json", "run.json"];
 
+/**
+ * Text a stranger wrote must not run as a formula when the CSV opens in a spreadsheet: a cell
+ * starting with = + - @ or a control character gets a leading apostrophe. Numbers stay numbers.
+ */
+function noFormulas(row: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(row)) out[k] = typeof v === "string" && /^[=+\-@\t\r]/.test(v) ? `'${v}` : v;
+  return out;
+}
+
 /** Write the whole run folder into `dir`; returns the paths written. */
 export function writeRunFolder(dir: string, run: RunOutput): string[] {
   mkdirSync(path.join(dir, "data"), { recursive: true });
@@ -21,7 +31,7 @@ export function writeRunFolder(dir: string, run: RunOutput): string[] {
     ["responses.jsonl", run.records.map((r) => JSON.stringify(r)).join("\n") + (run.records.length ? "\n" : "")],
     ["evidence.json", JSON.stringify(run.report.evidence.toJSON(run.report.meta), null, 2) + "\n"],
     ["run.json", JSON.stringify(run.run, null, 2) + "\n"],
-    ...Object.entries(run.tables).map(([name, t]): [string, string] => [path.join("data", `${tableFileName(name)}.csv`), toCsv(t.rows, t.columns)]),
+    ...Object.entries(run.tables).map(([name, t]): [string, string] => [path.join("data", `${tableFileName(name)}.csv`), toCsv(t.rows.map(noFormulas), t.columns)]),
   ];
   for (const [name, body] of files) writeFileSync(path.join(dir, name), body);
   return files.map(([name]) => path.join(dir, name));

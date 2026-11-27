@@ -9,6 +9,14 @@ describe("renderReportHtml", () => {
   const run = sampleRun();
   const html = renderReportHtml(run);
 
+  it("separates each evidence id from its claim", () => {
+    assert.ok(html.includes('<span class="id">F1</span> A post by Acme'));
+  });
+
+  it("keeps a chart readable on a phone: it scrolls rather than shrinking", () => {
+    assert.ok(/figure svg\{[^}]*min-width:\s*\d+px/.test(html));
+  });
+
   it("is one page that fetches nothing", () => {
     assert.ok(html.startsWith("<!doctype html>"));
     assert.ok(!/<link\b/i.test(html), "no stylesheet links");
@@ -36,7 +44,7 @@ describe("renderReportHtml", () => {
     const md = renderReport(run.report);
     assert.ok(md.includes("Acme's post reached 41x its usual views"));
     assert.ok(html.includes("Acme&#39;s post reached 41x its usual views"));
-    assert.ok(html.includes("<th>Post</th><th>Multiple</th>"));
+    assert.ok(html.includes('<th>Post</th><th class="num">Multiple</th>'));
     assert.ok(html.includes("What we could not verify"));
     assert.ok(html.includes("LinkedIn views: LinkedIn gives no view count"));
   });

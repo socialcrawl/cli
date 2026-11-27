@@ -23,8 +23,21 @@ describe("mdToHtml", () => {
   it("renders a pipe table with its header row", () => {
     const html = mdToHtml("| Post | Multiple |\n| --- | ---: |\n| Acme | 41x |");
     assert.ok(html.includes("<table>"));
-    assert.ok(html.includes("<th>Post</th><th>Multiple</th>"));
-    assert.ok(html.includes("<td>Acme</td><td>41x</td>"));
+    assert.ok(html.includes('<th>Post</th><th class="num">Multiple</th>'));
+    assert.ok(html.includes('<td>Acme</td><td class="num">41x</td>'));
+  });
+
+  it("wraps a table so a wide one scrolls on its own instead of being cut off", () => {
+    const html = mdToHtml("| a | b |\n| --- | --- |\n| 1 | 2 |");
+    assert.ok(html.startsWith('<div class="table-wrap"><table>'));
+    assert.ok(html.endsWith("</table></div>"));
+  });
+
+  it("centres figures, keeps words at the start", () => {
+    const html = mdToHtml("| Post | Multiple | Reach | Note |\n| --- | --- | --- | --- |\n| Acme | 131x | 173,032 views | still rising |");
+    assert.ok(html.includes('<td class="num">131x</td>'));
+    assert.ok(html.includes('<td class="num">173,032 views</td>'));
+    assert.ok(html.includes("<td>still rising</td>"));
   });
 
   it("links http and https only", () => {

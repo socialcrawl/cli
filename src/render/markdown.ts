@@ -24,7 +24,10 @@ const cells = (line: string) =>
     .split("|")
     .map((c) => c.trim());
 
-const TABLE_RULE = /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$/;
+/** A cell that is a figure: a number with an optional x or %, unit word and finding reference. */
+const FIGURE = /^(\?|\d[\d,.]*)(x|%)?(\s+[a-z]+)?(\s+\[F\d+\])?$/i;
+
+const TABLE_RULE =/^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$/;
 
 export function mdToHtml(md: string, refs: Set<string> = new Set()): string {
   const lines = md.replace(/\r\n?/g, "\n").split("\n");
@@ -76,9 +79,12 @@ export function mdToHtml(md: string, refs: Set<string> = new Set()): string {
       i += 2;
       while (i < lines.length && lines[i].trim().startsWith("|")) rows.push(cells(lines[i++]));
       i--;
+      // A column of figures ("131x", "173,032 views", "?") is centred, its header with it.
+      const num = head.map((_, c) => rows.length > 0 && rows.every((r) => !r[c] || FIGURE.test(r[c])) && rows.some((r) => r[c]));
+      const cls = (c: number) => (num[c] ? ' class="num"' : "");
       out.push(
-        `<table><thead><tr>${head.map((c) => `<th>${inline(c, refs)}</th>`).join("")}</tr></thead>` +
-          `<tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${inline(c, refs)}</td>`).join("")}</tr>`).join("")}</tbody></table>`,
+        `<div class="table-wrap"><table><thead><tr>${head.map((c, k) => `<th${cls(k)}>${inline(c, refs)}</th>`).join("")}</tr></thead>` +
+          `<tbody>${rows.map((r) => `<tr>${r.map((c, k) => `<td${cls(k)}>${inline(c, refs)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`,
       );
       continue;
     }

@@ -30,6 +30,23 @@ describe("renderCard675", () => {
     assert.equal(lines(long), lines("Short") + 1);
   });
 
+  it("keeps the space between wrapped lines, so its text reads whole", () => {
+    const out = renderCard675({ ...card, headlines: ["Read 9 posts that broke out this week on TikTok and Instagram (9 of 46 measured)"] });
+    const text = [...out.matchAll(/<text[^>]*>(.*?)<\/text>/g)].map((m) => m[1].replace(/<[^>]+>/g, "")).join("|");
+    assert.ok(text.includes("(9 of 46 measured)"), text);
+  });
+
+  it("does not break inside a parenthesis when it can break before it", () => {
+    const out = renderCard675({ ...card, headlines: ["Read 9 posts that broke out this week on TikTok and Instagram (9 of 46 measured)"] });
+    const spans = [...out.matchAll(/<tspan[^>]*>([^<]*)<\/tspan>/g)].map((m) => m[1]);
+    assert.ok(!spans.some((s) => /\([^)]*$/.test(s.trim())), spans.join(" / "));
+  });
+
+  it("names itself for a screen reader", () => {
+    assert.ok(svg.includes('role="img"'));
+    assert.ok(/aria-label="[^"]*AI coding tools/.test(svg));
+  });
+
   it("refuses more than three headlines, so it stays one screen", () => {
     assert.throws(() => renderCard675({ ...card, headlines: ["a", "b", "c", "d"] }));
   });
