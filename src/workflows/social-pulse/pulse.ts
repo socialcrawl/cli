@@ -87,6 +87,7 @@ export interface WeekSummary {
   complaint: number;
   recommendation: number;
   switching: number;
+  selling: number;
   byPlatform: Record<string, number>;
 }
 
@@ -108,6 +109,7 @@ export function weekSummary(body: ApiBody): WeekSummary | null {
     complaint: n(s.intent?.complaint),
     recommendation: n(s.intent?.recommendation),
     switching: n(s.intent?.switching),
+    selling: n(s.intent?.selling),
     byPlatform,
   };
 }

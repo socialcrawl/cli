@@ -122,6 +122,7 @@ describe("social-pulse: a whole run", () => {
     assert.match(md, /40 on-topic posts this week, up 60% on 25 the week before/);
     assert.match(md, /57% positive and 14% negative/);
     assert.match(md, /4 questions/);
+    assert.ok(md.includes("| Selling something | 0 | 0 |"), md);
   });
 
   it("measures a break-out against its author's earlier posts and names an account over 10,000 followers", async () => {

@@ -57,7 +57,7 @@ describe("rowOf", () => {
 describe("weekSummary", () => {
   it("reads the counts over every kept row, not only the delivered ones", () => {
     const s = weekSummary(discoverBody([], summary({ collected: 230, kept: 72, positive: 35, negative: 9, neutral: 12, uncertain: 15, question: 3, complaint: 2, recommendation: 6, switching: 2, byPlatform: { tiktok: 16, youtube: 16 } }), 31, "req-1"));
-    assert.deepEqual(s, { collected: 230, kept: 72, overflow: 0, positive: 35, negative: 9, stanceN: 71, question: 3, complaint: 2, recommendation: 6, switching: 2, byPlatform: { tiktok: 16, youtube: 16 } });
+    assert.deepEqual(s, { collected: 230, kept: 72, overflow: 0, positive: 35, negative: 9, stanceN: 71, question: 3, complaint: 2, recommendation: 6, switching: 2, selling: 0, byPlatform: { tiktok: 16, youtube: 16 } });
   });
   it("is null for an answer without a summary", () => {
     assert.equal(weekSummary({ success: true, data: {} }), null);

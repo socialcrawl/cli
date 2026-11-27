@@ -168,6 +168,7 @@ export function buildResult(out: PulseOutput, input: PulseInput, deep: boolean):
     ["Complaints", now?.complaint, was?.complaint],
     ["Recommendations", now?.recommendation, was?.recommendation],
     ["About switching", now?.switching, was?.switching],
+    ["Selling something", now?.selling, was?.selling],
   ];
   const weekOnWeek = [
     `This week is ${dmy(input.thisWeek.since)} to ${dmy(input.thisWeek.until)}; the week before, ${dmy(input.before.since)} to ${dmy(input.before.until)}.`,
