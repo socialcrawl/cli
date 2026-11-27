@@ -85,7 +85,7 @@ function trackerResult(t: Tracked, session: Session, args: WorkflowArgs): Workfl
     {
       title: "Over time",
       body: [
-        F3 ? `${n(t.gainPerHour)} ${unit} an hour across ${t.readings.length} readings [${F3.id}].` : `One reading so far. Run the same command again later and each run adds a reading here [${F1.id}].`,
+        F3 ? `It gained ${n((value(last) ?? 0) - (value(first) ?? 0))} ${unit} in ${spanText} across ${t.readings.length} readings, about ${n(t.gainPerHour)} an hour [${F3.id}].` : `One reading so far. Run the same command again later and each run adds a reading here [${F1.id}].`,
         "",
         table(["Read at", unit[0].toUpperCase() + unit.slice(1), "Likes", "Comments", "Request"], t.readings.map((r) => [when(r.at), n(value(r)), n(r.likes), n(r.comments), r.requestId ?? ""])),
       ].join("\n"),

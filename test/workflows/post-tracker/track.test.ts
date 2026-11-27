@@ -108,7 +108,9 @@ describe("post-tracker: readings over time", () => {
     assert.deepEqual(waits, [1_800_000, 1_800_000]);
     assert.equal(out.readings.length, 3);
     const { trackerResult } = await import("../../../src/workflows/post-tracker/index.ts");
-    const summary = trackerResult(out, session, { input: URL, flags: {}, deep: false, now: new Date() }).report.summary;
+    const result = trackerResult(out, session, { input: URL, flags: {}, deep: false, now: new Date() });
+    const summary = result.report.summary;
+    assert.match(result.report.sections.find((x) => x.title === "Over time")!.body, /^It gained 10,000 views in 1 hour across 3 readings, about 10,000 an hour/);
     assert.ok(summary.some((l) => l.startsWith("It gained 10,000 views in 1 hour across 3 readings, about 10,000 an hour")), JSON.stringify(summary));
   });
 
