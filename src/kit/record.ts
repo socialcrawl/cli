@@ -57,7 +57,7 @@ export class Session {
   readonly budget: Budget;
   readonly ledger = new CostLedger();
   readonly records: CallRecord[] = [];
-  readonly notRead: { stage: string; endpoint: string; reason: string }[] = [];
+  readonly notRead: { stage: string; endpoint: string; reason: string; /** Which limit stopped it: the run's budget, or the stage's own share. */ limit?: "run" | "stage" }[] = [];
   readonly errors: { stage: string; endpoint: string; status: number | null; message: string; requestId: string | null; body: unknown }[] = [];
   readonly startedAt: Date;
   private readonly kit: Caller;
@@ -85,7 +85,7 @@ export class Session {
       params = this.budget.allow(endpoint, paramsIn, stageMax) as Params;
     } catch (e) {
       if (e instanceof BudgetSpent) {
-        this.notRead.push({ stage, endpoint, reason: "budget" });
+        this.notRead.push({ stage, endpoint, reason: "budget", limit: stageMax < this.budget.left ? "stage" : "run" });
         return null;
       }
       throw e;
@@ -97,7 +97,7 @@ export class Session {
   async post(stage: string, endpoint: string, json: unknown, stageMax = Infinity): Promise<CallRecord | null> {
     const cost = postCost(endpoint, json);
     if (cost > Math.min(stageMax, this.budget.left)) {
-      this.notRead.push({ stage, endpoint, reason: "budget" });
+      this.notRead.push({ stage, endpoint, reason: "budget", limit: stageMax < this.budget.left ? "stage" : "run" });
       return null;
     }
     const post = this.kit.post;

@@ -44,7 +44,7 @@ export interface RunInfo {
   calls: number;
   seconds: number;
   startedAt: string;
-  notRead: { stage: string; endpoint: string; reason: string }[];
+  notRead: { stage: string; endpoint: string; reason: string; limit?: "run" | "stage" }[];
   errors: { stage: string; endpoint: string; status: number | null; message: string; requestId: string | null }[];
 }
 

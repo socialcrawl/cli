@@ -185,7 +185,13 @@ export function buildResult(out: ViralRunOutput, input: PlanInput, deep: boolean
   const tooFew = out.result.items.filter((i) => i.breakout.band === "too_few").length;
   if (tooFew) ev.unknown({ what: `${tooFew} post${tooFew === 1 ? "" : "s"} with no multiple`, why: `their authors had fewer than ${MIN_PEERS} comparable earlier posts to compare with` });
   for (const e of out.errors) ev.unknown({ what: `${e.stage}, ${e.endpoint}`, why: `the API answered ${e.status ?? "an error"}${e.requestId ? ` (${e.requestId})` : ""}: ${e.message}` });
-  for (const nr of out.notRead) ev.unknown({ what: `${nr.stage}, ${nr.endpoint}`, why: "not sent: the run's budget had run out" });
+  for (const nr of out.notRead) {
+    ev.unknown({
+      what: `${nr.stage}, ${nr.endpoint}`,
+      why: nr.limit === "stage" ? "not sent: this platform's share of the budget was spent" : "not sent: the run's budget had run out",
+      ...(deep ? {} : { check: "a --deep run gives each platform a larger share" }),
+    });
+  }
 
   const ref = (i: ViralItem) => (findingOf.has(i) ? ` [${findingOf.get(i)}]` : "");
   const summary = [`${headline} [${f1.id}]`];

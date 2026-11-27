@@ -62,7 +62,14 @@ describe("Session.call", () => {
     const rec = await s.call("baseline:tiktok", "tiktok/profile/videos", { handle: "acme" });
     assert.equal(rec, null);
     assert.equal(kit.sent.length, 0);
-    assert.deepEqual(s.notRead, [{ stage: "baseline:tiktok", endpoint: "tiktok/profile/videos", reason: "budget" }]);
+    assert.deepEqual(s.notRead, [{ stage: "baseline:tiktok", endpoint: "tiktok/profile/videos", reason: "budget", limit: "run" }]);
+  });
+
+  it("says when a stage's own share stopped a call while the run still had credits", async () => {
+    const kit = fakeKit([]);
+    const s = new Session({ dir: dir(), kit, budget: new Budget(50), skill: "test-skill", version: "0.0.0" });
+    assert.equal(await s.call("baseline:x", "twitter/user/tweets", { handle: "acme" }, 0), null);
+    assert.deepEqual(s.notRead, [{ stage: "baseline:x", endpoint: "twitter/user/tweets", reason: "budget", limit: "stage" }]);
   });
 
   it("keeps an API error with its body, books 0 credits and carries on", async () => {
@@ -121,7 +128,7 @@ describe("Session.post", () => {
     const rec = await s.post("details:youtube", "youtube/videos", { ids: Array.from({ length: 51 }, (_, i) => `v${i}`) });
     assert.equal(rec, null);
     assert.equal(kit.sent.length, 0);
-    assert.deepEqual(s.notRead, [{ stage: "details:youtube", endpoint: "youtube/videos", reason: "budget" }]);
+    assert.deepEqual(s.notRead, [{ stage: "details:youtube", endpoint: "youtube/videos", reason: "budget", limit: "run" }]);
   });
 
   it("respects the stage's own share", async () => {

@@ -13,7 +13,10 @@ import { validateReport } from "../../../src/engine/validate.ts";
 import { ApiError } from "../../../src/kit/kit.ts";
 import type { ApiBody, Params } from "../../../src/kit/kit.ts";
 import { EXIT, runWorkflow } from "../../../src/run.ts";
-import { NAME_FLOOR, followersOf, whoOf, workflow } from "../../../src/workflows/social-viral/index.ts";
+import { NAME_FLOOR, buildResult, followersOf, whoOf, workflow } from "../../../src/workflows/social-viral/index.ts";
+import { runViral } from "../../../src/workflows/social-viral/runner.ts";
+import { Session } from "../../../src/kit/record.ts";
+import { Budget } from "../../../src/engine/rates.ts";
 import { RUN_AT, records, row } from "../../engine/helpers.ts";
 
 const ARGS = { input: "AI coding tools", flags: { about: "AI coding tools and AI coding assistants for software developers" }, deep: false, since: "2026-11-19", until: "2026-11-26", now: RUN_AT };
@@ -119,6 +122,19 @@ describe("social-viral: a whole run on the recorded responses", () => {
     const md = r.read("report.md");
     assert.ok(!/\d\.\d{2}x/.test(md), "a multiple with two decimals");
     assert.ok(!/median [\d,]+\.\d/.test(md), "a median with a decimal");
+  });
+
+  it("blames a platform's share, not the run's budget, for a call its share cut", async () => {
+    const api = recordedApi();
+    const session = new Session({ dir: mkdtempSync(path.join(tmpdir(), "sc-viral-")), kit: api, budget: new Budget(100), skill: "social-viral", version: "0.1.0", now: () => RUN_AT });
+    const input = { topic: "AI coding tools", since: "2026-11-19", until: "2026-11-26" };
+    const out = await runViral(session, input, { now: () => RUN_AT });
+    out.notRead.push({ stage: "baseline:x", endpoint: "twitter/search/tweets", reason: "budget", limit: "stage" });
+    out.notRead.push({ stage: "baseline:tiktok", endpoint: "tiktok/profile/videos", reason: "budget", limit: "run" });
+    const ev = buildResult(out, input, false).report.evidence.toJSON();
+    const says = (what: string, why: RegExp) => ev.unverified.some((u) => u.what === what && why.test(u.why));
+    assert.ok(says("baseline:x, twitter/search/tweets", /this platform's share of the budget was spent/));
+    assert.ok(says("baseline:tiktok, tiktok/profile/videos", /the run's budget had run out/));
   });
 
   it("counts only accounts known to be under 10,000 followers as small", async () => {
