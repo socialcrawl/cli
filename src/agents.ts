@@ -1,6 +1,6 @@
 // The coding agents init installs the workflows into, and where each reads skills from.
 // Codex, Gemini CLI and GitHub Copilot share ~/.agents/skills, so it is written once.
-import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
 import path from "node:path";
 
 export interface Agent {
@@ -48,15 +48,39 @@ export function installTargets(agents: Agent[], o: { home: string; project: stri
   return out;
 }
 
-/** Copy every skills/<name>/ that has a SKILL.md into `dest`, replacing an older copy. Returns the names. */
-export function installSkills(source: string, dest: string): string[] {
+const WORKFLOWS_SOURCE = "source: https://github.com/socialcrawl/workflows";
+/** Skill folders an earlier release installed and this one no longer ships. 0.1.0's router was
+ * called socialcrawl, the name of the API skill in socialcrawl/skills. */
+const RETIRED = ["socialcrawl"];
+
+/** Whether the skill folder at `dir` was installed from socialcrawl/workflows. */
+function ours(dir: string): boolean {
+  const file = path.join(dir, "SKILL.md");
+  return existsSync(file) && readFileSync(file, "utf8").includes(WORKFLOWS_SOURCE);
+}
+
+/**
+ * Copy every skills/<name>/ that has a SKILL.md into `dest`. A folder already there is replaced
+ * only when it came from socialcrawl/workflows; anyone else's skill of the same name is kept.
+ */
+export function installSkills(source: string, dest: string): { installed: string[]; kept: string[]; removed: string[] } {
   const names = readdirSync(source)
     .filter((n) => statSync(path.join(source, n)).isDirectory() && existsSync(path.join(source, n, "SKILL.md")))
     .sort();
   mkdirSync(dest, { recursive: true });
+  const installed: string[] = [];
+  const kept: string[] = [];
   for (const n of names) {
-    rmSync(path.join(dest, n), { recursive: true, force: true });
-    cpSync(path.join(source, n), path.join(dest, n), { recursive: true });
+    const target = path.join(dest, n);
+    if (existsSync(target) && !ours(target)) {
+      kept.push(n);
+      continue;
+    }
+    rmSync(target, { recursive: true, force: true });
+    cpSync(path.join(source, n), target, { recursive: true });
+    installed.push(n);
   }
-  return names;
+  const removed = RETIRED.filter((n) => !names.includes(n) && ours(path.join(dest, n)));
+  for (const n of removed) rmSync(path.join(dest, n), { recursive: true, force: true });
+  return { installed, kept, removed };
 }

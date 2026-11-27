@@ -8,11 +8,14 @@ import { detectAgents, installSkills, installTargets } from "../../src/agents.ts
 
 const temp = (p: string) => mkdtempSync(path.join(tmpdir(), p));
 
+const OURS = "metadata:\n  source: https://github.com/socialcrawl/workflows\n";
+const ourSkill = (name: string) => `---\nname: ${name}\n${OURS}---\n`;
+
 function skillsSource() {
   const src = temp("sc-skills-");
-  for (const name of ["socialcrawl", "social-viral"]) {
+  for (const name of ["socialcrawl-workflows", "social-viral"]) {
     mkdirSync(path.join(src, name, "examples"), { recursive: true });
-    writeFileSync(path.join(src, name, "SKILL.md"), `---\nname: ${name}\n---\n`);
+    writeFileSync(path.join(src, name, "SKILL.md"), ourSkill(name));
     writeFileSync(path.join(src, name, "README.md"), `# ${name}\n`);
     writeFileSync(path.join(src, name, "examples", "report.md"), "# r\n");
   }
@@ -61,16 +64,43 @@ describe("installTargets", () => {
 });
 
 describe("installSkills", () => {
-  it("copies every skill folder that has a SKILL.md, and overwrites an older copy", () => {
+  it("copies every skill folder that has a SKILL.md, and overwrites an older copy of ours", () => {
     const src = skillsSource();
     const dest = path.join(temp("sc-dest-"), "skills");
     mkdirSync(path.join(dest, "social-viral"), { recursive: true });
-    writeFileSync(path.join(dest, "social-viral", "SKILL.md"), "old");
-    const names = installSkills(src, dest);
-    assert.deepEqual(names, ["social-viral", "socialcrawl"]);
-    assert.equal(readFileSync(path.join(dest, "social-viral", "SKILL.md"), "utf8"), "---\nname: social-viral\n---\n");
-    assert.ok(existsSync(path.join(dest, "socialcrawl", "examples", "report.md")));
+    writeFileSync(path.join(dest, "social-viral", "SKILL.md"), `---\nname: social-viral\n${OURS}---\nold\n`);
+    const r = installSkills(src, dest);
+    assert.deepEqual(r.installed, ["social-viral", "socialcrawl-workflows"]);
+    assert.deepEqual(r.kept, []);
+    assert.equal(readFileSync(path.join(dest, "social-viral", "SKILL.md"), "utf8"), ourSkill("social-viral"));
+    assert.ok(existsSync(path.join(dest, "socialcrawl-workflows", "examples", "report.md")));
     assert.ok(!existsSync(path.join(dest, "not-a-skill")));
     assert.ok(!existsSync(path.join(dest, "stray.md")));
+  });
+
+  it("never replaces a skill of the same name from somewhere else, and says so", () => {
+    const src = skillsSource();
+    const dest = path.join(temp("sc-dest-"), "skills");
+    mkdirSync(path.join(dest, "social-viral"), { recursive: true });
+    writeFileSync(path.join(dest, "social-viral", "SKILL.md"), "---\nname: social-viral\n---\nsomeone else's\n");
+    const r = installSkills(src, dest);
+    assert.deepEqual(r.installed, ["socialcrawl-workflows"]);
+    assert.deepEqual(r.kept, ["social-viral"]);
+    assert.equal(readFileSync(path.join(dest, "social-viral", "SKILL.md"), "utf8"), "---\nname: social-viral\n---\nsomeone else's\n");
+  });
+
+  it("leaves the socialcrawl API skill alone, and removes the router 0.1.0 installed under that name", () => {
+    const api = "---\nname: socialcrawl\nmetadata:\n  source: https://github.com/socialcrawl/skills\n---\n";
+    const withApi = path.join(temp("sc-dest-"), "skills");
+    mkdirSync(path.join(withApi, "socialcrawl"), { recursive: true });
+    writeFileSync(path.join(withApi, "socialcrawl", "SKILL.md"), api);
+    assert.deepEqual(installSkills(skillsSource(), withApi).removed, []);
+    assert.equal(readFileSync(path.join(withApi, "socialcrawl", "SKILL.md"), "utf8"), api);
+
+    const withOldRouter = path.join(temp("sc-dest-"), "skills");
+    mkdirSync(path.join(withOldRouter, "socialcrawl"), { recursive: true });
+    writeFileSync(path.join(withOldRouter, "socialcrawl", "SKILL.md"), ourSkill("socialcrawl"));
+    assert.deepEqual(installSkills(skillsSource(), withOldRouter).removed, ["socialcrawl"]);
+    assert.ok(!existsSync(path.join(withOldRouter, "socialcrawl")));
   });
 });

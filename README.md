@@ -10,7 +10,7 @@ npx -y socialcrawl@latest init
 
 1. Uses `SOCIALCRAWL_API_KEY` or a key you saved before. If there is none, it asks you to paste a key, or to press Enter and sign in by email with a link and a 6-digit code (a free key with 100 credits, no card).
 2. Checks the key with a free balance read before it saves it to `~/.socialcrawl/config.json`, never into a project folder.
-3. Finds the coding agents on your machine (Claude Code, Cursor, Codex, Gemini CLI, GitHub Copilot) and installs the workflows from [socialcrawl/workflows](https://github.com/socialcrawl/workflows) into each one.
+3. Finds the coding agents on your machine (Claude Code, Cursor, Codex, Gemini CLI, GitHub Copilot) and installs the workflows from [socialcrawl/workflows](https://github.com/socialcrawl/workflows) into each one. It never replaces a skill it did not install, so the [SocialCrawl API skill](https://github.com/socialcrawl/skills) and the [MCP server](https://github.com/socialcrawl/mcp) keep working beside the workflows, on the same account.
 
 Then ask your agent "what went viral about AI coding tools this week?", or run a workflow yourself:
 

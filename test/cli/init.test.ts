@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
@@ -202,6 +202,26 @@ describe("init: the agents", () => {
     assert.ok(existsSync(path.join(home, ".agents", "skills", "social-viral", "SKILL.md")));
     assert.deepEqual(readConfig(home).installed, ["claude-code", "codex"]);
     assert.ok(out.some((l) => l.includes("Claude Code")));
+  });
+
+  it("keeps someone else's skill of the same name, and says so", async () => {
+    const { d, out, home } = deps();
+    saveConfig(home, { apiKey: "sc_Good_notarealkey1234" });
+    mkdirSync(path.join(home, ".claude", "skills", "social-viral"), { recursive: true });
+    writeFileSync(path.join(home, ".claude", "skills", "social-viral", "SKILL.md"), "mine");
+    await runInit(d, { yes: false, install: true, project: false });
+    assert.equal(readFileSync(path.join(home, ".claude", "skills", "social-viral", "SKILL.md"), "utf8"), "mine");
+    assert.ok(out.some((l) => /social-viral as it was/.test(l)), out.join("\n"));
+  });
+
+  it("removes the router 0.1.0 installed as socialcrawl, and says how to get the API skill back", async () => {
+    const { d, out, home } = deps();
+    saveConfig(home, { apiKey: "sc_Good_notarealkey1234" });
+    mkdirSync(path.join(home, ".claude", "skills", "socialcrawl"), { recursive: true });
+    writeFileSync(path.join(home, ".claude", "skills", "socialcrawl", "SKILL.md"), "---\nname: socialcrawl\nmetadata:\n  source: https://github.com/socialcrawl/workflows\n---\n");
+    await runInit(d, { yes: false, install: true, project: false });
+    assert.ok(!existsSync(path.join(home, ".claude", "skills", "socialcrawl")));
+    assert.ok(out.some((l) => l.includes("npx skills add socialcrawl/skills -g")), out.join("\n"));
   });
 
   it("says so when it finds no agent, and points at the terminal commands", async () => {
