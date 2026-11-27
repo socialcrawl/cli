@@ -28,6 +28,13 @@ describe("discoverParams", () => {
       until: "2026-11-27",
     });
   });
+  it("asks for a fresh, new run only when the run must not use cached reads", () => {
+    const fresh = discoverParams({ topic: "Acme" }, w, false, true);
+    assert.equal(fresh.fresh, "true");
+    assert.equal(fresh.new_run, "true");
+    assert.equal(discoverParams({ topic: "Acme" }, w, false).fresh, undefined);
+  });
+
   it("judges against --about only when it is given, and reads two pages a platform when deep", () => {
     const p = discoverParams({ topic: "Acme", about: "Acme Notes, the notes app" }, w, true);
     assert.equal(p.context, "Acme Notes, the notes app");

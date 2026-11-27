@@ -310,7 +310,7 @@ export const workflow: Workflow = {
   },
   async run(session, args) {
     const input = inputOf(args);
-    const out = await runPulse(session, input, { deep: args.deep, now: () => args.now });
+    const out = await runPulse(session, input, { deep: args.deep, now: () => args.now, noCache: args.noCache === true });
     return buildResult(out, input, args.deep);
   },
 };

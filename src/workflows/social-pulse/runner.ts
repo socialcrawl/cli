@@ -45,9 +45,9 @@ export interface PulseOutput {
   errors: Session["errors"];
 }
 
-async function readWeek(session: Session, name: string, input: PulseInput, w: Window, deep: boolean): Promise<WeekRead> {
+async function readWeek(session: Session, name: string, input: PulseInput, w: Window, deep: boolean, noCache: boolean): Promise<WeekRead> {
   const week: WeekRead = { window: w, record: null, summary: null, rows: [], items: [], notRead: null };
-  const params = discoverParams(input, w, deep);
+  const params = discoverParams(input, w, deep, noCache);
   const quote = await session.call(`${name}:quote`, "prism/discover", { ...params, dry_run: "true" });
   const need = Number((quote?.body.data as { estimate?: { min_max_credits?: unknown } } | undefined)?.estimate?.min_max_credits);
   if (!quote || !Number.isFinite(need)) {
@@ -82,9 +82,9 @@ export function pulseCandidates(rows: Row[], w: Window): Row[] {
   });
 }
 
-export async function runPulse(session: Session, input: PulseInput, opts: { deep: boolean; now: () => Date }): Promise<PulseOutput> {
-  const thisWeek = await readWeek(session, "this-week", input, input.thisWeek, opts.deep);
-  const before = await readWeek(session, "week-before", input, input.before, opts.deep);
+export async function runPulse(session: Session, input: PulseInput, opts: { deep: boolean; now: () => Date; noCache?: boolean }): Promise<PulseOutput> {
+  const thisWeek = await readWeek(session, "this-week", input, input.thisWeek, opts.deep, opts.noCache ?? false);
+  const before = await readWeek(session, "week-before", input, input.before, opts.deep, opts.noCache ?? false);
 
   const candidates = pulseCandidates(thisWeek.rows, input.thisWeek);
   const scale = opts.deep ? DEEP_SCALE : 1;

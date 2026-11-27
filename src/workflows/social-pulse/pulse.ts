@@ -28,7 +28,7 @@ export function weeksOf(o: { now: Date; until?: string }): { thisWeek: Window; b
   };
 }
 
-export function discoverParams(input: { topic: string; about?: string }, w: Window, deep: boolean): Record<string, string | number> {
+export function discoverParams(input: { topic: string; about?: string }, w: Window, deep: boolean, noCache = false): Record<string, string | number> {
   return {
     query: input.topic,
     platforms: PULSE_PLATFORMS.join(","),
@@ -38,6 +38,8 @@ export function discoverParams(input: { topic: string; about?: string }, w: Wind
     until: w.until,
     ...(input.about ? { context: input.about } : {}),
     ...(deep ? { pages_per_platform: 2 } : {}),
+    // An identical recent run is reused for free; a measured first run must not be.
+    ...(noCache ? { fresh: "true", new_run: "true" } : {}),
   };
 }
 
