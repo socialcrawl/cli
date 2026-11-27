@@ -8,14 +8,16 @@ import { describe as describeBreakout, MIN_PEERS } from "../../engine/breakout.t
 import { Evidence, requestIdsOf } from "../../engine/evidence.ts";
 import { quoteLines } from "../../engine/rates.ts";
 import { rowsOf } from "../../engine/rows.ts";
-import type { Platform, ResponseRecord, Row } from "../../engine/rows.ts";
+import type { Platform, Row } from "../../engine/rows.ts";
 import type { CallRecord } from "../../kit/record.ts";
 import { formatNumber } from "../../render/svg.ts";
 import type { BarChart, Table, WorkflowResult } from "../../render/types.ts";
 import type { Workflow, WorkflowArgs } from "../types.ts";
-import { runViral } from "./runner.ts";
+import { SIZE_READS, followersOf, runViral } from "./runner.ts";
+
+export { followersOf };
 import type { ViralRunOutput } from "./runner.ts";
-import { BASELINE_SHARE, DATA_VENDOR_SUBJECT, FLOORS, SKILL, VIRAL_PLATFORMS, defaultPlanCredits } from "./viral.ts";
+import { BASELINE_SHARE, FLOORS, SKILL, VIRAL_PLATFORMS, defaultPlanCredits } from "./viral.ts";
 import type { PlanInput, ViralItem, ViralPlatform } from "./viral.ts";
 
 /** Accounts below this many followers are described in the report and on the card, never named. */
@@ -44,17 +46,6 @@ export function whoOf(r: Row, known: number | null = null): string {
   return r.platform === "linkedin" ? r.author : `@${r.author}`;
 }
 
-/** The largest follower count read for each author ("tiktok:acme"), across every response of the run. */
-export function followersOf(records: ResponseRecord[]): Map<string, number> {
-  const m = new Map<string, number>();
-  for (const rec of records)
-    for (const r of rowsOf(rec)) {
-      if (r.authorFollowers === null || !r.author) continue;
-      const k = `${r.platform}:${r.author.toLowerCase()}`;
-      m.set(k, Math.max(m.get(k) ?? 0, r.authorFollowers));
-    }
-  return m;
-}
 
 function windowOf(args: WorkflowArgs): { since: string; until: string } {
   const until = args.until ?? args.now.toISOString().slice(0, 10);
@@ -132,6 +123,7 @@ const UNREAD_WHY: Record<string, string> = {
 /** The report, the card, the evidence and the tables of one run. */
 export function buildResult(out: ViralRunOutput, input: PlanInput, deep: boolean): WorkflowResult {
   const known = followersOf(out.records);
+  for (const [k, v] of out.sizes) known.set(k, v);
   const followers = (r: Row) => r.authorFollowers ?? known.get(`${r.platform}:${r.author.toLowerCase()}`) ?? null;
   const who = (r: Row) => whoOf(r, followers(r));
   const named = (r: Row) => r.platform === "reddit" || (followers(r) ?? 0) >= NAME_FLOOR;
@@ -243,7 +235,7 @@ export function buildResult(out: ViralRunOutput, input: PlanInput, deep: boolean
     `socialcrawl social-viral "${input.topic}"`,
     "```",
     ...(leader ? ["", `Then check whether the leading post still stands at ${fm(leader.breakout.multiple ?? 0)}x its author's usual reach${ref(leader)}.`] : []),
-    ...(deep ? [] : ["", "Read more authors and pages with a deep run, quoted for free before it starts:", "", "```bash", `socialcrawl social-viral "${input.topic}" --deep`, "```"]),
+    ...(deep ? [] : ["", "Read more authors and pages with a deep run; it prints its price, then runs:", "", "```bash", `socialcrawl social-viral "${input.topic}" --deep`, "```"]),
     ...(leader && named(leader.row) && leader.row.platform !== "reddit"
       ? ["", "Take the leading account apart:", "", "```bash", `socialcrawl social-teardown "${leader.row.platform === "linkedin" ? leader.row.author : "@" + leader.row.author}"`, "```"]
       : []),
@@ -327,8 +319,9 @@ export const workflow: Workflow = {
     const retweeters = args.deep ? RETWEETERS.deep : RETWEETERS.default;
     return {
       expected: p.search.expected + baselines,
-      max: p.ceiling + baselines + retweeters,
-      lines: [`Window: ${dmy(input.since)} to ${dmy(input.until)}`, ...quoteLines(p.search), `Baselines: up to ${baselines} credits. Retweeter pages: up to ${retweeters}.`],
+      // The run never spends past its budget, so neither does the quote's ceiling.
+      max: Math.min(p.ceiling + baselines + retweeters + SIZE_READS, args.deep ? workflow.deepBudget : workflow.defaultBudget),
+      lines: [`Window: ${dmy(input.since)} to ${dmy(input.until)}`, ...quoteLines(p.search), `Baselines: up to ${baselines} credits. Retweeter pages: up to ${retweeters}. Account sizes: up to ${SIZE_READS}.`],
     };
   },
   async run(session, args) {

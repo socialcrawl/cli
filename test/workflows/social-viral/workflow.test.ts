@@ -98,6 +98,52 @@ describe("whoOf: who a report may name", () => {
   });
 });
 
+describe("social-viral: the size of an account the search did not give", () => {
+  function withProfiles(followers: number | null) {
+    const api = recordedApi();
+    const base = api.call;
+    const sized: Params[] = [];
+    api.call = async (p: string, params: Params = {}) => {
+      if (p === "youtube/channel" || p === "instagram/profile") {
+        sized.push({ endpoint: p, ...params });
+        api.calls.push({ path: p, params });
+        if (followers === null) throw new ApiError(404, { success: false, error: { type: "NOT_FOUND", message: "gone" }, request_id: "req-gone" });
+        return { success: true, data: { author: { username: String(params.handle ?? "c"), followers } }, credits_used: 1, request_id: `req-size${sized.length}` };
+      }
+      return base(p, params);
+    };
+    return { api, sized };
+  }
+  const session = (api: ReturnType<typeof recordedApi>) => new Session({ dir: mkdtempSync(path.join(tmpdir(), "sc-viral-")), kit: api, budget: new Budget(100), skill: "social-viral", version: "0.1.0", now: () => RUN_AT });
+  const input = { topic: "AI coding tools", since: "2026-11-19", until: "2026-11-26" };
+
+  it("reads the channel or profile of each card-worthy YouTube or Instagram account of unknown size, at most 5", async () => {
+    const { api, sized } = withProfiles(25_000);
+    const out = await runViral(session(api), input, { now: () => RUN_AT });
+    const unknown = out.result.items.filter((i) => i.cardWorthy && ["youtube", "instagram"].includes(i.row.platform) && i.row.authorFollowers === null);
+    assert.ok(unknown.length > 0, "the recorded run has such an account");
+    assert.equal(sized.length, Math.min(5, unknown.length));
+    for (const s of sized) assert.ok(s.channelId || s.handle, JSON.stringify(s));
+    assert.ok(out.records.some((r) => r.stage.startsWith("sizes:")));
+  });
+
+  it("then names an account of 10,000 followers or more", async () => {
+    const { api } = withProfiles(25_000);
+    const out = await runViral(session(api), input, { now: () => RUN_AT });
+    const res = buildResult(out, input, false);
+    const sizedItem = out.result.items.find((i) => out.sizes.has(`${i.row.platform}:${i.row.author.toLowerCase()}`))!;
+    assert.ok(sizedItem);
+    assert.ok(res.report.summary.join("\n").includes(`@${sizedItem.row.author}`) || res.report.sections[0].body.includes(`@${sizedItem.row.author}`));
+  });
+
+  it("keeps 'unknown size' only when the read fails", async () => {
+    const { api } = withProfiles(null);
+    const out = await runViral(session(api), input, { now: () => RUN_AT });
+    assert.equal(out.sizes.size, 0);
+    assert.ok(buildResult(out, input, false).report.sections[0].body.includes("an account of unknown size"));
+  });
+});
+
 describe("social-viral: a whole run on the recorded responses", () => {
   it("exits 0 and writes every file", async () => {
     const r = await runOnce();

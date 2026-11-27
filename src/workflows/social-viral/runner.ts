@@ -5,6 +5,7 @@ import { breakoutWithPage, morePage } from "../../engine/baseline.ts";
 import { retweeterRead } from "../../engine/boosted.ts";
 import type { CostLedger, Meta } from "../../engine/rates.ts";
 import { rowsOf } from "../../engine/rows.ts";
+import type { ResponseRecord, Row } from "../../engine/rows.ts";
 import { TOPIC_LANES, stageParams } from "../../engine/stages.ts";
 import type { CallRecord, Session } from "../../kit/record.ts";
 import {
@@ -27,6 +28,28 @@ export interface ViralRunOptions {
   now?: () => Date;
 }
 
+/** Card-worthy accounts whose size no response gave get one profile read each, at most this many. */
+export const SIZE_READS = 5;
+
+/** The largest follower count read for each author ("tiktok:acme"), across every response of the run. */
+export function followersOf(records: ResponseRecord[]): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const rec of records)
+    for (const r of rowsOf(rec)) {
+      if (r.authorFollowers === null || !r.author) continue;
+      const k = `${r.platform}:${r.author.toLowerCase()}`;
+      m.set(k, Math.max(m.get(k) ?? 0, r.authorFollowers));
+    }
+  return m;
+}
+
+/** The 1-credit read that gives an account's follower count, for the platforms whose search leaves it out. */
+export function sizeCall(r: Row): { endpoint: string; params: Params } | null {
+  if (r.platform === "youtube") return r.channelId ? { endpoint: "youtube/channel", params: { channelId: r.channelId } } : r.author ? { endpoint: "youtube/channel", params: { handle: r.author } } : null;
+  if (r.platform === "instagram" && r.author) return { endpoint: "instagram/profile", params: { handle: r.author } };
+  return null;
+}
+
 export interface ViralRunOutput {
   /** The successful responses, in order. */
   records: CallRecord[];
@@ -37,6 +60,8 @@ export interface ViralRunOutput {
   ledger: CostLedger;
   notRead: Session["notRead"];
   errors: Session["errors"];
+  /** Follower counts read for card-worthy accounts the search gave no size for ("youtube:channel"). */
+  sizes: Map<string, number>;
 }
 
 type Params = Record<string, string | number | boolean | undefined>;
@@ -98,9 +123,22 @@ export async function runViral(session: Session, input: PlanInput, opts: ViralRu
     result = rankViral(candidates.rows, plans, pages, { now: now(), retweeters });
   }
 
+  // 7. sizes: the report names an account only from 10,000 followers, so a card-worthy
+  // account the search returned without a count gets one profile read.
+  const sizes = new Map<string, number>();
+  const known = followersOf(ok());
+  const unsized = result.items.filter((i) => i.cardWorthy && i.row.authorFollowers === null && !known.has(`${i.row.platform}:${i.row.author.toLowerCase()}`));
+  for (const i of unsized.slice(0, SIZE_READS)) {
+    const c = sizeCall(i.row);
+    if (!c) continue;
+    const rec = await session.call(`sizes:${i.row.platform}`, c.endpoint, c.params, 1);
+    const f = Number((rec?.body.data as { author?: { followers?: unknown } } | undefined)?.author?.followers);
+    if (rec && Number.isFinite(f)) sizes.set(`${i.row.platform}:${i.row.author.toLowerCase()}`, f);
+  }
+
   const meta = session.meta();
   const card = cardMarkdown({ topic: input.topic, since: input.since, until: input.until, credits: session.ledger.credits, candidates, result });
-  return { records: ok(), candidates, result, card, meta, ledger: session.ledger, notRead: session.notRead, errors: session.errors };
+  return { records: ok(), candidates, result, card, meta, ledger: session.ledger, notRead: session.notRead, errors: session.errors, sizes };
 }
 
 export { SKILL };
