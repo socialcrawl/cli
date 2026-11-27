@@ -131,6 +131,22 @@ describe("social-pulse: a whole run", () => {
     assert.match(md, /60x/);
   });
 
+  it("gives no multiple over a base too small to compare, and says why", async () => {
+    const api = pulseApi();
+    const base = api.call;
+    api.call = async (p: string, params: Params = {}) => {
+      if (p !== "tiktok/profile/videos") return base(p, params);
+      const page = tiktokPage(String(params.handle));
+      for (const it of (page.data as { items: { post: { engagement: { views: number } } }[] }).items) it.post.engagement.views = 3;
+      return page;
+    };
+    const r = await runOnce(api);
+    const md = r.read("report.md");
+    assert.ok(!md.includes("20,000x"), "no multiple over a median of 3");
+    const ev = JSON.parse(r.read("evidence.json")) as EvidenceJson;
+    assert.ok(ev.unverified.some((u) => /median of 3 views, too few to compare/.test(u.why)), JSON.stringify(ev.unverified));
+  });
+
   it("quotes what people asked, and never names an account under 10,000 followers", async () => {
     const r = await runOnce();
     const shown = r.read("report.md") + r.read("card.svg");

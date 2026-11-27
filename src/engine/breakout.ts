@@ -30,9 +30,28 @@ export const YOUNG_PEER_SHARE = 0.25;
 /** The settled-only multiple needs at least this many peers 48 hours or older. */
 export const MIN_SETTLED_PEERS = 5;
 
-/** beat: 3x or more; above: 1.5x to 3x; normal: under 1.5x; too_few: under 8 comparable posts; no_metric: the post or its base has no count. */
-export type Band = "beat" | "above" | "normal" | "too_few" | "no_metric";
+/**
+ * beat: 3x or more; above: 1.5x to 3x; normal: under 1.5x; too_few: under 8 comparable posts;
+ * no_metric: the post or its base has no count; base_too_small: the earlier posts median under MIN_BASE.
+ */
+export type Band = "beat" | "above" | "normal" | "too_few" | "no_metric" | "base_too_small";
 export type Metric = "views" | "likes";
+
+/**
+ * The least median a base needs before a multiple means anything. Under it the account was
+ * dormant or new: 48,642 views over a median of 3 is not a 16,000-fold break-out. In the
+ * study recorded author pages (57 with views, 60 with likes) no views median was under 235,
+ * so 100 removes none of them; likes (also Reddit score) are the metric only where a platform
+ * gives no views, and a median under 10 moves by a tenth or more with one like.
+ */
+export const MIN_BASE: Record<Metric, number> = { views: 100, likes: 10 };
+/**
+ * A Reddit base is the community's posts, not one author's, and a small community is real: a
+ * 300-score post over a median of 5 is a break-out. A score starts at 1 (the poster's own vote),
+ * so only a median under 2, where posts draw no other votes, gives no multiple. The recorded
+ * communities run from a median of 2 upwards.
+ */
+export const MIN_COMMUNITY_BASE = 2;
 
 export interface Breakout {
   platform: Platform;
@@ -149,6 +168,7 @@ export function breakoutOf(target: Row, pool: Row[], opts: BreakoutOptions): Bre
   let band: Band;
   if (peers.length < minPeers) band = "too_few";
   else if (value === null || base === null || base <= 0) band = "no_metric";
+  else if (base < (target.platform === "reddit" ? MIN_COMMUNITY_BASE : MIN_BASE[metric])) band = "base_too_small";
   else {
     multiple = round2(value / base);
     band = bandOf(multiple);
@@ -156,9 +176,10 @@ export function breakoutOf(target: Row, pool: Row[], opts: BreakoutOptions): Bre
   const young = peers.filter((p) => now - t(p) < youngMs).length;
   const settledVals = peers.filter((p) => now - t(p) >= youngMs).map((p) => metricValue(p, metric) as number);
   const settledBase = settledVals.length >= MIN_SETTLED_PEERS ? median(settledVals) : null;
-  const settledMultiple = value !== null && settledBase !== null && settledBase > 0 ? round2(value / settledBase) : null;
+  const small = band === "base_too_small";
+  const settledMultiple = !small && value !== null && settledBase !== null && settledBase > 0 ? round2(value / settledBase) : null;
   const best = peers.length >= minPeers ? Math.max(...peers.map((p) => metricValue(p, metric) as number)) : null;
-  const overBestPeer = value !== null && best !== null && best > 0 ? round2(value / best) : null;
+  const overBestPeer = !small && value !== null && best !== null && best > 0 ? round2(value / best) : null;
   const ids = new Set<string>();
   for (const r of [target, ...peers]) if (r.requestId) ids.add(r.requestId);
   return {
@@ -204,6 +225,10 @@ export function describe(b: Breakout): string {
   const n = (x: number) => x.toLocaleString("en-GB");
   if (b.band === "too_few") return `too few posts (${b.peers} comparable, ${MIN_PEERS} needed)`;
   if (b.band === "no_metric") return `no ${b.metric} count to compare`;
+  if (b.band === "base_too_small") {
+    const what = b.platform === "reddit" && b.metric === "likes" ? `a median score of ${n(b.base as number)}` : `a median of ${n(b.base as number)} ${b.metric}`;
+    return `its earlier posts had ${what}, too few to compare`;
+  }
   const notes = [
     b.settling ? "still rising" : null,
     b.inflatedByYoung ? `${b.youngPeers} of ${b.peers} comparable posts are under 48 hours old; the multiple may be high` : null,

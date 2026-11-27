@@ -186,6 +186,19 @@ describe("social-viral: a whole run on the recorded responses", () => {
     assert.ok(!/median [\d,]+\.\d/.test(md), "a median with a decimal");
   });
 
+  it("lists a post whose author's earlier posts were too small a base, with the reason", async () => {
+    const api = recordedApi();
+    const session = new Session({ dir: mkdtempSync(path.join(tmpdir(), "sc-viral-")), kit: api, budget: new Budget(100), skill: "social-viral", version: "0.1.0", now: () => RUN_AT });
+    const input = { topic: "AI coding tools", since: "2026-11-19", until: "2026-11-26" };
+    const out = await runViral(session, input, { now: () => RUN_AT });
+    const item = out.result.items[0];
+    item.breakout = { ...item.breakout, band: "base_too_small", multiple: null, base: 3, metric: "views" };
+    item.viral = false;
+    item.cardWorthy = false;
+    const ev = buildResult(out, input, false).report.evidence.toJSON();
+    assert.ok(ev.unverified.some((u) => /median of 3 views, too few to compare/.test(u.why)), JSON.stringify(ev.unverified.map((u) => u.why)));
+  });
+
   it("blames a platform's share, not the run's budget, for a call its share cut", async () => {
     const api = recordedApi();
     const session = new Session({ dir: mkdtempSync(path.join(tmpdir(), "sc-viral-")), kit: api, budget: new Budget(100), skill: "social-viral", version: "0.1.0", now: () => RUN_AT });

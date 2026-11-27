@@ -94,19 +94,19 @@ describe("the multiple", () => {
 
   it("marks a multiple inflated when more than a quarter of its peers are under 48 hours old, and checks it against its settled peers", () => {
     const now = new Date("2026-11-03T12:00:00Z");
-    const settled = series(5, () => 100, {}, "2026-10-30T12:00:00Z");
-    const young = [0, 1, 2].map((i) => row({ id: `y${i}`, views: 10, publishedAt: new Date(now.getTime() - (5 + i) * 3_600_000).toISOString() }));
-    const target = row({ id: "t", publishedAt: "2026-10-20T12:00:00Z", views: 900 });
+    const settled = series(5, () => 1_000, {}, "2026-10-30T12:00:00Z");
+    const young = [0, 1, 2].map((i) => row({ id: `y${i}`, views: 100, publishedAt: new Date(now.getTime() - (5 + i) * 3_600_000).toISOString() }));
+    const target = row({ id: "t", publishedAt: "2026-10-20T12:00:00Z", views: 9_000 });
     const b = breakoutOf(target, [target, ...settled, ...young], { now, mode: "around" });
     assert.equal(b.peers, 8);
     assert.equal(b.youngPeers, 3);
     assert.equal(b.inflatedByYoung, true);
-    assert.equal(b.settledMultiple, 9); // 900 over the 5 settled peers at 100
+    assert.equal(b.settledMultiple, 9); // 9,000 over the 5 settled peers at 1,000
     assert.equal(b.settledPeers, 5);
     assert.equal(cardWorthy(b), true); // still 3x or more without the young peers
     assert.match(describeB(b), /3 of 8 comparable posts are under 48 hours old; the multiple may be high/);
     // Below 5 settled peers there is no settled multiple; 9x over its best post still carries it.
-    const thin = breakoutOf(target, [target, ...settled.slice(0, 4), ...young, row({ id: "y9", views: 10, publishedAt: new Date(now.getTime() - 3_600_000).toISOString() })], { now, mode: "around" });
+    const thin = breakoutOf(target, [target, ...settled.slice(0, 4), ...young, row({ id: "y9", views: 100, publishedAt: new Date(now.getTime() - 3_600_000).toISOString() })], { now, mode: "around" });
     assert.equal(thin.settledMultiple, null);
     assert.equal(thin.overBestPeer, 9);
     assert.equal(cardWorthy(thin), true);
@@ -145,6 +145,45 @@ describe("the multiple", () => {
     assert.equal(bandOf(1.49), "normal");
     assert.equal(median([3, 1, 2]), 2);
     assert.equal(median([]), null);
+  });
+});
+
+describe("a base too small to compare against", () => {
+  const NOW = new Date("2026-11-10T12:00:00.000Z");
+  const target = (over: Partial<Parameters<typeof row>[0]>) => row({ id: "t", publishedAt: "2026-11-01T12:00:00.000Z", ...over });
+
+  it("gives no multiple when the earlier posts' median is under 100 views", () => {
+    const b = breakoutOf(target({ views: 48_642 }), series(11, (i) => [7, 5, 22, 12, 5, 1, 3, 3, 26, 2, 4][i]), { now: NOW });
+    assert.equal(b.band, "base_too_small");
+    assert.equal(b.multiple, null);
+    assert.equal(b.base, 5);
+    assert.equal(b.overBestPeer, null);
+    assert.equal(b.settledMultiple, null);
+    assert.equal(cardWorthy(b), false);
+    assert.equal(describeB(b), "its earlier posts had a median of 5 views, too few to compare");
+  });
+
+  it("still measures a base of 100 views", () => {
+    const b = breakoutOf(target({ views: 1_000 }), series(10, () => 100), { now: NOW });
+    assert.equal(b.band, "beat");
+    assert.equal(b.multiple, 10);
+  });
+
+  it("needs a median of 10 likes over an author's own posts", () => {
+    const low = breakoutOf(target({ views: null, likes: 400 }), series(10, () => 0, { views: null, likes: 4 }), { now: NOW, metric: "likes" });
+    assert.equal(low.band, "base_too_small");
+    const ok = breakoutOf(target({ views: null, likes: 400 }), series(10, () => 0, { views: null, likes: 10 }), { now: NOW, metric: "likes" });
+    assert.equal(ok.multiple, 40);
+  });
+
+  it("measures a small Reddit community, whose base is the community's posts, from a median score of 2", () => {
+    // A score starts at 1, the poster's own vote: a median of 1 means the community's posts draw no other votes.
+    const small = breakoutOf(target({ platform: "reddit", views: null, likes: 300 }), series(10, () => 0, { platform: "reddit", views: null, likes: 5 }), { now: NOW, metric: "likes" });
+    assert.equal(small.band, "beat");
+    assert.equal(small.multiple, 60);
+    const dead = breakoutOf(target({ platform: "reddit", views: null, likes: 300 }), series(10, () => 0, { platform: "reddit", views: null, likes: 1 }), { now: NOW, metric: "likes" });
+    assert.equal(dead.band, "base_too_small");
+    assert.equal(describeB(dead), "its earlier posts had a median score of 1, too few to compare");
   });
 });
 

@@ -178,6 +178,7 @@ export function buildResult(out: ViralRunOutput, input: PlanInput, deep: boolean
   }
   const tooFew = out.result.items.filter((i) => i.breakout.band === "too_few").length;
   if (tooFew) ev.unknown({ what: `${tooFew} post${tooFew === 1 ? "" : "s"} with no multiple`, why: `their authors had fewer than ${MIN_PEERS} comparable earlier posts to compare with` });
+  for (const i of out.result.items.filter((x) => x.breakout.band === "base_too_small")) ev.unknown({ what: `${label(i.row.platform)}: ${who(i.row)}`, why: `not measured: ${describeBreakout(i.breakout)}` });
   for (const e of out.errors) ev.unknown({ what: `${e.stage}, ${e.endpoint}`, why: `the API answered ${e.status ?? "an error"}${e.requestId ? ` (${e.requestId})` : ""}: ${e.message}` });
   for (const nr of out.notRead) {
     ev.unknown({

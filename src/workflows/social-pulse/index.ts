@@ -2,7 +2,7 @@
 // sentiment, questions and complaints against the week before, what people asked, and the
 // posts breaking out against their authors' own earlier posts.
 import { FLAG_LABEL } from "../../engine/boosted.ts";
-import { MIN_PEERS } from "../../engine/breakout.ts";
+import { MIN_PEERS, describe as describeBreakout } from "../../engine/breakout.ts";
 import { Evidence, requestIdsOf } from "../../engine/evidence.ts";
 import { rowsOf } from "../../engine/rows.ts";
 import type { Platform, Row } from "../../engine/rows.ts";
@@ -150,6 +150,7 @@ export function buildResult(out: PulseOutput, input: PulseInput, deep: boolean):
   }
   const tooFew = out.result.items.filter((i) => i.breakout.band === "too_few").length;
   if (tooFew) ev.unknown({ what: `${tooFew} post${tooFew === 1 ? "" : "s"} with no multiple`, why: `not measured: their authors had fewer than ${MIN_PEERS} comparable earlier posts` });
+  for (const i of out.result.items.filter((x) => x.breakout.band === "base_too_small")) ev.unknown({ what: `${label(i.row.platform)}: ${who(i.row)}`, why: `not measured: ${describeBreakout(i.breakout)}` });
   for (const e of out.errors) ev.unknown({ what: `${e.stage}, ${e.endpoint}`, why: `the API answered ${e.status ?? "an error"}${e.requestId ? ` (${e.requestId})` : ""}: ${e.message}` });
 
   const summaryLines = [`${headline} [${f1.id}]`, `${sentiment} [${f2.id}]`, `${asks} [${f3.id}]`];
