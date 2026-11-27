@@ -7,10 +7,10 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import { TOPIC_LANES, breakoutWithPage, rowsOf, stageParams, timelineCall, xBaselineCall } from "../../engine/index.ts";
-import type { Platform, Row } from "../../engine/index.ts";
+import { TOPIC_LANES, breakoutWithPage, morePage, rowsOf, stageParams, timelineCall, xBaselineCall } from "../../engine/index.ts";
+import type { BaselineStep, Platform, Row } from "../../engine/index.ts";
 import type { Params } from "../../kit/kit.ts";
-import type { Session } from "../../kit/record.ts";
+import type { CallRecord, Session } from "../../kit/record.ts";
 import type { WorkflowArgs } from "../types.ts";
 
 export interface PostRef {
@@ -107,6 +107,47 @@ function readingOf(row: Row, at: string, requestId: string | null, raw: unknown)
   return { at, views: row.views, likes: row.likes, comments: row.comments, shares: row.shares, saves: row.saves, quotes: typeof q === "number" ? q : null, requestId };
 }
 
+/**
+ * The author's size, for a post read that carries none: YouTube's video read has no subscriber
+ * count, and Instagram's post read may have no follower count. Null when the platform needs no
+ * extra read or it failed. Shared with video-teardown.
+ */
+export async function readSize(session: Session, row: Row, ref: PostRef): Promise<{ followers: number | null; handle: string | null } | null> {
+  const size = ref.platform === "youtube" && row.channelId ? { endpoint: "youtube/channel", params: { channelId: row.channelId } } : ref.platform === "instagram" && row.author ? { endpoint: "instagram/profile", params: { handle: row.author } } : null;
+  if (!size) return null;
+  const rec = await session.call(`size:${ref.platform}`, size.endpoint, size.params);
+  const a = (rec?.body?.data as { author?: { username?: unknown; followers?: unknown } } | undefined)?.author;
+  return { followers: typeof a?.followers === "number" ? a.followers : null, handle: typeof a?.username === "string" && a.username ? a.username.replace(/^@/, "") : null };
+}
+
+/** The author's usual reach for one post: their earlier comparable posts, never topic-filtered. Shared with video-teardown. */
+export async function readBaseline(session: Session, row: Row, ref: PostRef, now: Date): Promise<KeptBaseline | null> {
+  const call = baselineCall(row, ref);
+  if (!call) return null;
+  const params = TOPIC_LANES.has(call.endpoint) ? { ...call.params, judgments: "off" } : stageParams(call.endpoint, call.params, { labels: "off" });
+  const rec = await session.call(`baseline:${ref.platform}`, call.endpoint, params);
+  if (!rec) return null;
+  const metric = ref.platform === "reddit" || row.views === null ? "likes" : "views";
+  const target = { ...row, ...(ref.short ? { format: "short" as const } : {}) };
+  let page = rowsOf(rec);
+  let b = breakoutWithPage(target, page, { now, metric });
+  // A prolific creator's first pages can all be newer than the post: walk back up to two more
+  // pages while too few earlier posts were found (the engine's morePage, as social-viral does).
+  let body: CallRecord["body"] = rec.body;
+  for (let k = 0; k < 2; k++) {
+    const step = { platform: ref.platform, key: row.author ?? "", endpoint: call.endpoint, params, credits: 1, rowIds: [row.id], preRank: null } as BaselineStep;
+    const next = morePage(b, step, body as never, Infinity);
+    if (!next) break;
+    const more = await session.call(`baseline:${ref.platform}`, next.endpoint, next.params);
+    if (!more) break;
+    page = [...page, ...rowsOf(more)];
+    body = more.body;
+    b = breakoutWithPage(target, page, { now, metric });
+  }
+  const dates = page.filter((r) => b.peerIds.includes(r.id)).map((r) => r.publishedAt).filter((x): x is string => Boolean(x)).sort();
+  return { metric, band: b.band, median: b.base, peers: b.peers, from: dates[0]?.slice(0, 10) ?? null, to: dates.at(-1)?.slice(0, 10) ?? null, requestIds: b.requestIds, readAt: now.toISOString() };
+}
+
 export interface TrackDeps {
   sleep?: (ms: number) => Promise<void>;
 }
@@ -142,31 +183,16 @@ export async function trackPost(session: Session, args: WorkflowArgs, deps: Trac
   // account of 10,000 followers or more and describe a smaller one (YouTube's video read has no
   // subscriber count; Instagram's post read may have no follower count).
   if (history.authorFollowers === null && !history.sizeRead) {
-    const size = ref.platform === "youtube" && latest.channelId ? { endpoint: "youtube/channel", params: { channelId: latest.channelId } } : ref.platform === "instagram" && latest.author ? { endpoint: "instagram/profile", params: { handle: latest.author } } : null;
+    const size = await readSize(session, latest, ref);
     if (size) {
-      const rec = await session.call(`size:${ref.platform}`, size.endpoint, size.params);
-      const a = (rec?.body?.data as { author?: { username?: unknown; followers?: unknown } } | undefined)?.author;
-      if (typeof a?.followers === "number") history.authorFollowers = a.followers;
-      if (typeof a?.username === "string" && a.username) history.author = a.username.replace(/^@/, "");
+      if (size.followers !== null) history.authorFollowers = size.followers;
+      if (size.handle) history.author = size.handle;
       history.sizeRead = true;
     }
   }
 
   // The author's usual reach, read once and kept.
-  if (!history.baseline) {
-    const call = baselineCall(latest, ref);
-    if (call) {
-      const params = TOPIC_LANES.has(call.endpoint) ? { ...call.params, judgments: "off" } : stageParams(call.endpoint, call.params, { labels: "off" });
-      const rec = await session.call(`baseline:${ref.platform}`, call.endpoint, params);
-      if (rec) {
-        const metric = ref.platform === "reddit" || latest.views === null ? "likes" : "views";
-        const target = { ...latest, ...(ref.short ? { format: "short" as const } : {}) };
-        const b = breakoutWithPage(target, rowsOf(rec), { now: args.now, metric });
-        const dates = rowsOf(rec).filter((r) => b.peerIds.includes(r.id)).map((r) => r.publishedAt).filter((x): x is string => Boolean(x)).sort();
-        history.baseline = { metric, band: b.band, median: b.base, peers: b.peers, from: dates[0]?.slice(0, 10) ?? null, to: dates.at(-1)?.slice(0, 10) ?? null, requestIds: b.requestIds, readAt: args.now.toISOString() };
-      }
-    }
-  }
+  if (!history.baseline) history.baseline = await readBaseline(session, latest, ref, args.now);
 
   mkdirSync(path.dirname(historyFile), { recursive: true });
   writeFileSync(historyFile, JSON.stringify(history, null, 1) + "\n");
