@@ -10,6 +10,7 @@ import { times } from "../_video/report.ts";
 import { dmy } from "../_video/window.ts";
 import { postOf, trackPost } from "./track.ts";
 import type { Reading, Tracked } from "./track.ts";
+/** A median as shown to a reader: whole, as social-viral prints it; the exact value stays in the history and the evidence. */const whole = (x: number | null) => (x === null ? null : Math.round(x));
 
 export const REPORT_SECTIONS = ["Now", "Against its author's usual reach", "Over time", "Next plays"];
 const LABEL: Record<string, string> = { x: "X", tiktok: "TikTok", instagram: "Instagram", youtube: "YouTube", reddit: "Reddit" };
@@ -41,7 +42,7 @@ function trackerResult(t: Tracked, session: Session, args: WorkflowArgs): Workfl
   });
   const F2 = t.baseline
     ? ev.add({
-        claim: t.multiple !== null ? `${times(t.multiple)} ${usual}: a median of ${n(t.baseline.median)} over ${t.baseline.peers} earlier posts.` : t.baseline.band === "base_too_small" ? `Its earlier posts had a median of ${n(t.baseline.median)} ${unit}, too few to compare.` : `Too few earlier posts to compare: ${t.baseline.peers} found, 8 needed.`,
+        claim: t.multiple !== null ? `${times(t.multiple)} ${usual}: a median of ${n(whole(t.baseline.median))} over ${t.baseline.peers} earlier posts.` : t.baseline.band === "base_too_small" ? `Its earlier posts had a median of ${n(whole(t.baseline.median))} ${unit}, too few to compare.` : `Too few earlier posts to compare: ${t.baseline.peers} found, 8 needed.`,
         confidence: "seen",
         numbers: { multiple: t.multiple, median: t.baseline.median, peers: t.baseline.peers, needed: 8, breakout: 3 },
         requests: t.baseline.requestIds.length ? t.baseline.requestIds : F1.requests,
@@ -79,9 +80,9 @@ function trackerResult(t: Tracked, session: Session, args: WorkflowArgs): Workfl
       title: "Against its author's usual reach",
       body: F2
         ? t.multiple !== null
-          ? `Now at ${times(t.multiple)} ${usual}, a median of ${n(t.baseline!.median)} ${unit} over ${t.baseline!.peers} earlier posts${t.baseline!.from ? ` from ${dmy(t.baseline!.from)} to ${dmy(t.baseline!.to!)}` : ""}; 3 times or more is a break-out [${F2.id}].`
+          ? `Now at ${times(t.multiple)} ${usual}, a median of ${n(whole(t.baseline!.median))} ${unit} over ${t.baseline!.peers} earlier posts${t.baseline!.from ? ` from ${dmy(t.baseline!.from)} to ${dmy(t.baseline!.to!)}` : ""}; 3 times or more is a break-out [${F2.id}].`
           : t.baseline!.band === "base_too_small"
-            ? `No multiple: its earlier posts had a median of ${n(t.baseline!.median)} ${unit}, too few to compare [${F2.id}].`
+            ? `No multiple: its earlier posts had a median of ${n(whole(t.baseline!.median))} ${unit}, too few to compare [${F2.id}].`
             : `No multiple: ${t.baseline!.peers} comparable earlier posts were on the pages read, and 8 are needed [${F2.id}].`
         : "Not read: see What we could not verify.",
     },
@@ -102,7 +103,6 @@ function trackerResult(t: Tracked, session: Session, args: WorkflowArgs): Workfl
         [
           ["Read it again later: each run adds a reading", `\`npx -y socialcrawl@latest post-tracker ${h.url}\``, "the gain an hour since this reading"],
           ["Six readings an hour apart, in one run", `\`npx -y socialcrawl@latest post-tracker ${h.url} --every 60 --times 6\``, "whether the gain an hour holds or fades"],
-          ["Take it apart shot by shot", `\`npx -y socialcrawl@latest video-teardown ${h.url}\``, "its structure, words and comments"],
         ],
       ),
     },

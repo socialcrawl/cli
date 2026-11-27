@@ -174,7 +174,7 @@ export function videoResult(spec: VideoSpec, run: VideoRun, session: Session, ar
     i.row.publishedAt ? dmy(i.row.publishedAt) : "unknown",
     times(i.breakout.multiple),
     n(i.breakout.value ?? 0),
-    `median of ${n(i.breakout.base ?? 0)} views over ${i.breakout.peers} earlier ${P}s${spanOf(i)}${i.breakout.settling ? ", still rising" : ""}`,
+    `median of ${n(Math.round(i.breakout.base ?? 0))} views over ${i.breakout.peers} earlier ${P}s${spanOf(i)}${i.breakout.settling ? ", still rising" : ""}`,
     traitsOf(i.row).length ?? "unknown",
     hookOf(i.row.text) ?? "",
     linkOf(i.row),
@@ -285,7 +285,6 @@ export function videoResult(spec: VideoSpec, run: VideoRun, session: Session, ar
   if (lead) {
     const where = named(lead.row) && lead.row.url ? lead.row.url : "<the first link in data/posts.csv>";
     plays.push([`Track the top break-out (${label(lead.row)})`, cmd(`post-tracker ${where}`), `its views in ${CHECK_DAYS} days against ${n(lead.row.views ?? 0)} today`]);
-    plays.push(["Take it apart shot by shot", cmd(`video-teardown ${where}`), "its structure, words and comments"]);
   }
   if (topTrait) plays.push([`Post your own ${P} with the ${topTrait.trait} \`${topTrait.value}\``, "-", `in ${CHECK_DAYS} days, whether it reached ${BANDS.beat} times your own median views`]);
   sections.push({ title: "Next plays", body: table(["Play", "Command", `What to check`], plays) });

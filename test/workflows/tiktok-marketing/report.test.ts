@@ -98,6 +98,26 @@ describe("tiktok-marketing: the report", () => {
     assert.match(md, /1 video whose creator's earlier videos had a median under 100 views/);
   });
 
+  it("prints a median as a whole number, and keeps the exact value in the evidence", async () => {
+    // smallone's twelve earlier videos have 2,000 to 2,011 views: a median of 2,005.5 (QA 27/11/2026).
+    const half = world().map((r) =>
+      r.endpoint === "tiktok/profile/videos" && r.when?.({ handle: "smallone" }, undefined)
+        ? { ...r, data: { items: Array.from({ length: 12 }, (_, k) => post({ id: `smallone-h${k}`, author: "smallone", views: 2_000 + k, at: new Date(Date.parse("2026-11-17T00:00:00Z") - k * 86_400_000).toISOString() })) } }
+        : r,
+    );
+    const { session } = fakeSession(half);
+    const out = await workflow.run(session, ARGS);
+    const md = renderReport(out.report);
+    assert.doesNotMatch(md, /2,005\.5|2005\.5/);
+    assert.match(md, /median of 2,006 views/);
+    assert.match(JSON.stringify(out.report.evidence.toJSON(out.report.meta)), /2005\.5/);
+  });
+
+  it("suggests no workflow that does not ship (video-teardown)", async () => {
+    const { md } = await result();
+    assert.doesNotMatch(md, /video-teardown/);
+  });
+
   it("says what it could not read, with the reason", async () => {
     const { md } = await result();
     assert.match(md, /no list of who shared/i);

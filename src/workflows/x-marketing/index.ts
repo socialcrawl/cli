@@ -115,7 +115,7 @@ function xResult(run: XRun, session: Session, quoteDeep: WorkflowQuote): Workflo
     title: "What broke out",
     body: [
       viral.length ? `Each post is measured against its author's originals published before it; ${viral.length} of ${measured.length} reached ${BANDS.beat} times or more [${F1.id}].` : `None of the ${measured.length} posts with a baseline reached ${BANDS.beat} times its author's usual views [${F1.id}].`,
-      viral.length ? "\n" + table(["#", "Account", "Published", "× its usual views", "Views", "Baseline", "Hook", "Link"], viral.slice(0, 10).map((i, k) => [String(k + 1), label(i.row), i.row.publishedAt ? dmy(i.row.publishedAt) : "unknown", times(i.breakout.multiple), n(i.breakout.value ?? 0), `median of ${n(i.breakout.base ?? 0)} views over ${i.breakout.peers} earlier originals`, hookOf(i.row.text) ?? "", linkOf(i.row).startsWith("http") ? `[open on X](${linkOf(i.row)})` : linkOf(i.row)])) : "",
+      viral.length ? "\n" + table(["#", "Account", "Published", "× its usual views", "Views", "Baseline", "Hook", "Link"], viral.slice(0, 10).map((i, k) => [String(k + 1), label(i.row), i.row.publishedAt ? dmy(i.row.publishedAt) : "unknown", times(i.breakout.multiple), n(i.breakout.value ?? 0), `median of ${n(Math.round(i.breakout.base ?? 0))} views over ${i.breakout.peers} earlier originals`, hookOf(i.row.text) ?? "", linkOf(i.row).startsWith("http") ? `[open on X](${linkOf(i.row)})` : linkOf(i.row)])) : "",
       [...boosted, ...unusual].length ? "\n" + table(["Account", "Flag", "Why"], [...boosted, ...unusual].map((i) => [label(i.row), FLAG_LABEL[i.flag!.flag!], i.flag!.reasons.join("; ")])) : "",
     ].join("\n"),
   });

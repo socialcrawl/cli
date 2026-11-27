@@ -148,6 +148,22 @@ describe("x-marketing: how many authors a run measures", () => {
   });
 });
 
+describe("x-marketing: medians", () => {
+  it("prints a median as a whole number, and keeps the exact value in the evidence", async () => {
+    // bigdev's twenty earlier originals have 10,000 to 10,019 views: a median of 10,009.5.
+    const half: Route[] = [
+      { endpoint: "twitter/search/tweets", when: (p) => String(p.query ?? "").startsWith("from:bigdev "), data: { items: Array.from({ length: 20 }, (_, k) => tw({ id: `bh${k}`, author: "bigdev", followers: 80_000, views: 10_000 + k, at: new Date(Date.parse("2026-11-19T00:00:00Z") - k * 86_400_000).toISOString(), text: "earlier" })) } },
+      ...world(),
+    ];
+    const { session } = fakeSession(half, 60);
+    const out = await workflow.run(session, ARGS);
+    const md = renderReport(out.report);
+    assert.doesNotMatch(md, /10,009\.5/);
+    assert.match(md, /median of 10,010 views/);
+    assert.match(JSON.stringify(out.report.evidence.toJSON(out.report.meta)), /10009\.5/);
+  });
+});
+
 describe("x-marketing: the trait line", () => {
   it("names a trait only when break-outs have it more often than the rest, and says how often the rest do", async () => {
     const { session } = fakeSession(world(), 60);
