@@ -48,10 +48,12 @@ const GAP = 10;
 export function barChartSvg(chart: BarChart, width = 720): string {
   if (chart.bars.length === 0) return "";
   const top = Math.max(...chart.bars.map((b) => b.value), 0);
-  const plot = width - LABEL_W - VALUE_W;
-  const height = chart.bars.length * (ROW + GAP) - GAP;
   // "2.8x" and "40%" sit on the number; a word unit gets a space: "9 comments".
   const unit = chart.unit && /^[a-wyz]/i.test(chart.unit) ? ` ${chart.unit}` : chart.unit ?? "";
+  // Room after the longest bar for the longest value label (12px mono is about 7.6px a character).
+  const longest = Math.max(...chart.bars.map((b) => `${formatNumber(b.value)}${unit}`.length));
+  const plot = width - LABEL_W - Math.max(VALUE_W, Math.ceil(longest * 7.6) + 12);
+  const height = chart.bars.length * (ROW + GAP) - GAP;
   const rows = chart.bars.map((b, i) => {
     const y = i * (ROW + GAP);
     const w = top > 0 ? Math.max(1, (b.value / top) * plot) : 1;

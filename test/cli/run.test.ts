@@ -62,6 +62,13 @@ describe("runWorkflow", () => {
     assert.deepEqual(run.stages.map((s: { name: string }) => s.name), ["search:x", "baseline:x"]);
   });
 
+  it("tells the workflow when the run must read everything fresh", async () => {
+    const seen: (boolean | undefined)[] = [];
+    const h = harness({ opts: { noCache: true }, workflow: { quote: (args) => (seen.push(args.noCache), { expected: 1, max: 2, lines: [] }) } });
+    await runWorkflow(h.ctx);
+    assert.deepEqual(seen, [true]);
+  });
+
   it("with --plan prints the quote and spends nothing", async () => {
     const h = harness({ opts: { plan: true } });
     assert.equal(await runWorkflow(h.ctx), EXIT.ok);

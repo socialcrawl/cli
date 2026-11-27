@@ -67,7 +67,8 @@ function runInfo(ctx: RunContext, session: Session, budget: number): RunInfo {
 }
 
 export async function runWorkflow(ctx: RunContext): Promise<number> {
-  const { workflow, args, opts } = ctx;
+  const { workflow, opts } = ctx;
+  const args: WorkflowArgs = { ...ctx.args, noCache: opts.noCache };
   const quote = await workflow.quote(args);
   const balanceBody = await ctx.kit.balance();
   const balance = Number((balanceBody.data as { balance?: number } | undefined)?.balance ?? balanceBody.credits_remaining ?? 0);

@@ -24,6 +24,13 @@ describe("barChartSvg", () => {
     assert.ok(barChartSvg({ title: "T", unit: "%", bars: [{ label: "a", value: 9 }] }).includes(">9%<"));
   });
 
+  it("leaves room for the longest value label at the end of the longest bar", () => {
+    const width = 720;
+    const svg = barChartSvg({ title: "T", unit: "views", bars: [{ label: "a", value: 30_982 }, { label: "b", value: 30_982 }] }, width);
+    const xs = [...svg.matchAll(/<text x="([\d.]+)"[^>]*font-size="12"[^>]*>([^<]*)</g)].map((m) => ({ x: Number(m[1]), text: m[2] }));
+    for (const t of xs) assert.ok(t.x + t.text.length * 7.6 <= width, `${t.text} ends past the edge at ${t.x}`);
+  });
+
   it("escapes labels", () => {
     const svg = barChartSvg({ title: "T", bars: [{ label: "Acme <b>", value: 1 }] });
     assert.ok(!svg.includes("<b>"));

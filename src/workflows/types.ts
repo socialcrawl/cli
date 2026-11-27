@@ -20,6 +20,8 @@ export interface WorkflowArgs {
   since?: string;
   until?: string;
   now: Date;
+  /** --no-cache: read everything fresh, for measuring what a first run costs. */
+  noCache?: boolean;
 }
 
 export interface WorkflowQuote {
