@@ -119,6 +119,15 @@ describe("linkedin-marketing: a whole run", () => {
     assert.match(most, /2 other members posted 2 posts between them/);
   });
 
+  it("says '1 of the N comments is phrased as a question' in the singular", async () => {
+    const api = liApi();
+    const base = api.call;
+    let n = 0;
+    api.call = async (p: string, params: Params = {}) => (p === "linkedin/post/comments" ? commentsPage(n++ === 0 ? ["Is it free?", "Nice"] : ["Agreed"], `req-c${n}`) : base(p, params));
+    const md = (await runOnce(api)).read("report.md");
+    assert.match(md, /1 of the 3 comments read is phrased as a question/);
+  });
+
   it("says plainly what LinkedIn does not give", async () => {
     const r = await runOnce();
     const ev = JSON.parse(r.read("evidence.json")) as EvidenceJson;

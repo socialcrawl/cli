@@ -83,7 +83,7 @@ export function buildResult(out: LinkedInOutput, input: LinkedInInput, deep: boo
   const questions = out.comments.flatMap((c) => c.rows.filter((r) => isQuestion(r.text)).map((r) => ({ r, post: c.post })));
   const commentIds = out.comments.flatMap((c) => (c.record ? requestIdsOf(c.record) : []));
   const f3 = ev.add({
-    claim: `${questions.length} of the ${allComments.length} comments read on the ${out.comments.length} most liked posts are phrased as questions`,
+    claim: `${questions.length} of the ${allComments.length} comments read on the ${out.comments.length} most liked posts ${questions.length === 1 ? "is phrased as a question" : "are phrased as questions"}`,
     confidence: commentIds.length ? "inferred" : "unknown",
     numbers: { questions: questions.length, comments: allComments.length, posts: out.comments.length },
     requests: commentIds,
@@ -103,7 +103,7 @@ export function buildResult(out: LinkedInOutput, input: LinkedInInput, deep: boo
 
   const summary = [`${headline} [${f1.id}]`];
   for (const i of viral.slice(0, 3)) summary.push(`${who(i.row)} at ${formatNumber(i.breakout.multiple ?? 0)}x its author's median likes over ${i.breakout.peers} earlier posts${ref(i)}`);
-  summary.push(`${questions.length} of the ${allComments.length} comments read are phrased as questions [${f3.id}]`);
+  summary.push(`${questions.length} of the ${allComments.length} comments read ${questions.length === 1 ? "is phrased as a question" : "are phrased as questions"} [${f3.id}]`);
 
   const shown = viral.length ? viral.slice(0, 15) : out.result.items.filter((i) => i.breakout.multiple !== null).slice(0, 5);
   const breakouts = [
