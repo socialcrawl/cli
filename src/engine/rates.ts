@@ -38,6 +38,8 @@ export const RATES: Record<string, Rate> = {
   "tiktok/profile/videos": { page: 1, walks: true },
   "tiktok/post/comments": { page: 1, walks: true },
   "tiktok/post/transcript": { page: 10, walks: false },
+  // 5 a page without include=ad, which the workflows never send (21 with it). Registry x-credit-cost 5.
+  "tiktok/adlibrary/search": { page: 5, walks: true },
   "instagram/search/reels": { page: 1, topicHold: 4, walks: true },
   "instagram/profile/reels": { page: 1, walks: true },
   "instagram/post/comments": { page: 5, walks: true },
