@@ -24,7 +24,7 @@ socialcrawl social-viral "AI coding tools"
 
 | Workflow | Give it | Default run, measured | At most |
 | --- | --- | --- | --- |
-| [`social-viral`](https://github.com/socialcrawl/workflows/tree/main/skills/social-viral) | a topic | 73 credits | 100 |
+| [`social-viral`](https://github.com/socialcrawl/workflows/tree/main/skills/social-viral) | a topic | 61 credits | 100 |
 | [`tiktok-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/tiktok-marketing) | a keyword | 40 credits | 55 |
 | [`instagram-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/instagram-marketing) | a keyword | 48 credits | 60 |
 | [`youtube-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/youtube-marketing) | a keyword | 41 credits | 49 |
@@ -36,17 +36,17 @@ Each was measured once on "AI coding tools" on 27/11/2026 with nothing cached; e
 ```text
 $ socialcrawl social-viral "AI coding tools"
 This run reads about 67 credits (at most 100). You have …
-search: 6 calls, 18 credits
-baseline: 36 calls, 49 credits
+search: 6 calls, 16 credits
+baseline: 34 calls, 39 credits
 amplifiers: 2 calls, 2 credits
 sizes: 4 calls, 4 credits
-12 posts broke out at 3x their author's usual reach, on 5 platforms
-  TikTok: @benkimball.ai at 110x its author's median views over 17 earlier posts
-  YouTube: @greatlearning at 44x its author's median views over 12 earlier posts
-  TikTok: @ai.honeycove at 43.7x its author's median views over 9 earlier posts
-  Instagram: @benkimball.ai at 33.3x its author's median likes over 18 earlier posts
-Not read: 5 calls (budget). Not verified: 17 items. The report lists each one.
-Cost: 73 credits, 48 calls, 198.6 s.
+11 posts broke out at 3x their author's usual reach, on 5 platforms
+  X: an account with 2,447 followers at 48.1x its author's median views over 20 earlier posts
+  Instagram: @benkimball.ai at 33.4x its author's median likes over 18 earlier posts
+  Reddit: a post in r/ClaudeUniversity at 22.5x its author's median score over 17 earlier posts
+  YouTube: @IBMTechnology at 18.6x its author's median views over 20 earlier posts
+Not read: 4 calls (budget). Not verified: 13 items. The report lists each one.
+Cost: 61 credits, 46 calls, 181.6 s.
 Report: socialcrawl-runs/social-viral-ai-coding-tools-2026-11-27/report.html
 ```
 
@@ -115,7 +115,7 @@ Workflows live in `src/workflows/<name>/` and implement `Workflow` from `src/wor
 
 1. Set the version in `package.json` and `src/version.ts`, and date its entry in `CHANGELOG.md`: `## 0.1.0 (DD/MM/YYYY)`.
 2. Run `npm run release:check` with `SOCIALCRAWL_LEAK_GATE` set to the leak gate. It runs the gate, the whole suite and the build, and checks the version, the changelog entry and the files the package would publish.
-3. `git tag v0.1.0 && git push origin v0.1.0`. The release workflow publishes to npm with provenance (it needs the `NPM_TOKEN` repository secret) and creates the GitHub release from the changelog entry.
+3. `git tag v0.1.0 && git push origin v0.1.0`. The release workflow publishes to npm through trusted publishing, with provenance, and creates the GitHub release from the changelog entry. [RELEASING.md](RELEASING.md) has the full steps, including the first release by hand.
 
 ## Licence
 

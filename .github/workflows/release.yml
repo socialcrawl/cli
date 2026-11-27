@@ -1,8 +1,10 @@
 name: Release
 
-# Pushing a tag vX.Y.Z publishes that version to npm with provenance and creates the
-# GitHub release from its CHANGELOG.md entry. Run `node tools/release.ts` before tagging:
-# it runs the leak gate, which only the maintainer's machine has.
+# Pushing a tag vX.Y.Z publishes that version to npm through trusted publishing (OIDC, no
+# stored token) with provenance, then creates the GitHub release from its CHANGELOG.md entry.
+# A version already on npm (the first release is published by hand) is not published again.
+# Before tagging, run `npm run release:check`: it runs the leak gate, which only the
+# maintainer's machine has. See RELEASING.md.
 on:
   push:
     tags: ["v*"]
@@ -21,14 +23,24 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
           cache: npm
+      # Trusted publishing needs npm 11.5.1 or later.
+      - run: npm install -g npm@latest
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
       - run: node tools/release.ts --ci --tag "$GITHUB_REF_NAME" --notes release-notes.md
-      - run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      - run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file release-notes.md
+      - id: published
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if npm view "socialcrawl@${version}" version > /dev/null 2>&1; then
+            echo "socialcrawl@${version} is already on npm, so npm publish is skipped; the GitHub release is still created."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.published.outputs.exists != 'true'
+        run: npm publish --provenance --access public
+      - run: gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file release-notes.md
         env:
           GH_TOKEN: ${{ github.token }}
