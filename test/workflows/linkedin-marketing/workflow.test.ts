@@ -143,6 +143,14 @@ describe("linkedin-marketing: a whole run", () => {
     assert.match(md, /LinkedIn's post search gives no follower counts/);
   });
 
+  it("says '1 LinkedIn post broke out at 3x its author's usual likes' in the singular", async () => {
+    const api = liApi();
+    const base = api.call;
+    api.call = async (p: string, params: Params = {}) => (p === "linkedin/profile/posts" && String(params.url).includes("big-voice") ? profilePage("big-voice", 60) : base(p, params));
+    const md = (await runOnce(api)).read("report.md");
+    assert.match(md, /1 LinkedIn post broke out this week at 3x its author's usual likes/);
+  });
+
   it("quotes a long comment's question, not its opening", async () => {
     const api = liApi();
     const base = api.call;

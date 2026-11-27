@@ -62,7 +62,7 @@ export function buildResult(out: LinkedInOutput, input: LinkedInInput, deep: boo
   const period = deep ? "month" : "week";
   const headline = out.search
     ? viral.length
-      ? `${viral.length} LinkedIn post${viral.length === 1 ? "" : "s"} broke out this ${period} at 3x their author's usual likes`
+      ? `${viral.length} LinkedIn post${viral.length === 1 ? "" : "s"} broke out this ${period} at 3x ${viral.length === 1 ? "its" : "their"} author's usual likes`
       : `No LinkedIn post broke out this ${period} at 3x its author's usual likes`
     : "LinkedIn could not be searched";
   const f1 = ev.add({
