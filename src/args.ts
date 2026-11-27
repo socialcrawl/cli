@@ -15,6 +15,7 @@ export class UsageError extends Error {
 
 export type Parsed =
   | { cmd: "help" }
+  | { cmd: "workflow-help"; workflow: Workflow }
   | { cmd: "version" }
   | { cmd: "whoami" }
   | { cmd: "init"; yes: boolean; skillsFrom?: string; install: boolean; project: boolean }
@@ -73,6 +74,7 @@ export function parseCli(argv: string[], workflows: Workflow[], now: Date): Pars
   if (!workflow) {
     throw new UsageError(`Unknown command "${first}". Workflows: ${workflows.map((w) => w.name).join(", ") || "none installed"}. Run socialcrawl --help.`);
   }
+  if (rest.includes("--help") || rest.includes("-h")) return { cmd: "workflow-help", workflow };
   const own = workflow.options ?? {};
   for (const k of Object.keys(own)) if (k in SHARED) throw new Error(`${workflow.name} redefines the shared option --${k}.`);
   const { values, positionals } = parse(rest, { ...SHARED, ...own });

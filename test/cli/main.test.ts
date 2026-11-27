@@ -46,6 +46,20 @@ describe("main", () => {
     assert.ok(out.join("\n").includes("socialcrawl init"));
   });
 
+  it("prints a workflow's own help for <workflow> --help, and calls nothing", async () => {
+    const { d, out, err, seen } = deps();
+    assert.equal(await main(["test-flow", "--help"], d), EXIT.ok);
+    const text = out.join("\n");
+    const w = d.workflows[0];
+    assert.ok(text.includes(w.summary), text);
+    assert.ok(text.includes(`Usage: ${w.usage}`), text);
+    for (const e of w.examples) assert.ok(text.includes(e), text);
+    assert.match(text, /--plan/);
+    assert.match(text, new RegExp(`at most ${w.defaultBudget} credits`));
+    assert.deepEqual(err, []);
+    assert.equal(seen.length, 0);
+  });
+
   it("prints the package's version", async () => {
     const { d, out } = deps();
     await main(["--version"], d);

@@ -23,6 +23,14 @@ describe("parseCli", () => {
     assert.ok(bare.cmd === "init" && !bare.install && !bare.project);
   });
 
+  it("reads <workflow> --help and -h as that workflow's help, input or not", () => {
+    for (const argv of [["test-flow", "--help"], ["test-flow", "-h"], ["test-flow", "AI tools", "--help"], ["test-flow", "--deep", "--help"]]) {
+      const p = parse(argv);
+      assert.equal(p.cmd, "workflow-help", argv.join(" "));
+      assert.ok(p.cmd === "workflow-help" && p.workflow.name === "test-flow");
+    }
+  });
+
   it("reads a workflow run with its input and the shared options", () => {
     const p = parse(["test-flow", "AI", "coding", "tools", "--budget", "60", "--since", "2026-11-20", "--until", "2026-11-27", "--out", "here", "--json", "--open", "--no-cache", "--yes", "--platforms", "x,tiktok"]);
     assert.equal(p.cmd, "run");

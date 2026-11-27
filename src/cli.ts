@@ -41,6 +41,23 @@ const NO_KEY = [
   "Or set SOCIALCRAWL_API_KEY.",
 ];
 
+/** One workflow's help: what it does, how to call it, its own options and what a run costs. */
+function workflowHelpLines(w: Workflow): string[] {
+  const own = Object.entries(w.options ?? {}).map(([k, o]) => `  --${k}${o.type === "string" ? " <value>" : ""}`);
+  return [
+    `${w.name}: ${w.summary}`,
+    "",
+    `Usage: ${w.usage}`,
+    "",
+    "Examples:",
+    ...w.examples.map((e) => `  ${e}`),
+    ...(own.length ? ["", "Its own options:", ...own] : []),
+    "",
+    `A default run spends at most ${w.defaultBudget} credits, --deep at most ${w.deepBudget}. --plan prints the quote for free and spends nothing.`,
+    "socialcrawl --help lists the options every workflow takes.",
+  ];
+}
+
 function helpLines(workflows: Workflow[]): string[] {
   const width = Math.max(8, ...workflows.map((w) => w.name.length));
   return [
@@ -108,6 +125,9 @@ export async function main(argv: string[], deps: MainDeps): Promise<number> {
     switch (parsed.cmd) {
       case "help":
         for (const l of helpLines(deps.workflows)) deps.out(l);
+        return EXIT.ok;
+      case "workflow-help":
+        for (const l of workflowHelpLines(parsed.workflow)) deps.out(l);
         return EXIT.ok;
       case "version":
         deps.out(VERSION);
