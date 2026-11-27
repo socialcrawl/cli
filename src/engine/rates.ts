@@ -21,6 +21,8 @@ export interface Rate {
    * that names `page_credits`). Measured, never guessed.
    */
   minMaxCredits?: number;
+  /** A POST batch is priced `page` credits per this many ids (postCost). */
+  perIds?: number;
   note?: string;
 }
 
@@ -43,7 +45,13 @@ export const RATES: Record<string, Rate> = {
   "youtube/search": { page: 1, topicHold: 4, walks: true },
   "youtube/channel/videos": { page: 1, walks: true },
   "youtube/video/comments": { page: 1, walks: true },
-  "youtube/transcripts": { page: 3, walks: false, note: "3 per transcript" },
+  "youtube/transcripts": { page: 3, walks: false, perIds: 1, note: "POST, 3 per transcript" },
+  "youtube/videos": { page: 5, walks: false, perIds: 50, note: "POST, 5 per 50 ids" },
+  "youtube/channels": { page: 5, walks: false, perIds: 50, note: "POST, 5 per 50 ids" },
+  "youtube/channel": { page: 1, walks: false },
+  "youtube/channel/shorts": { page: 1, walks: true },
+  "youtube/video": { page: 1, walks: false },
+  "youtube/video/transcript": { page: 3, walks: false },
   // minMaxCredits 10 works around an API bug, not a price. Production read max_pages=1 sent
   // with max_credits as "every post the cap can pay for" (row-walk/deep-page.ts), so any cap was
   // refused at cap + 4: 6 asked for 10 (live /social-viral run, 26/11/2026; SOC-33). Fixed in the
@@ -52,6 +60,9 @@ export const RATES: Record<string, Rate> = {
   // Harmless meanwhile: one page still spends 1 credit.
   "reddit/search": { page: 1, topicHold: 4, walks: true, minMaxCredits: 10 },
   "reddit/subreddit": { page: 1, walks: true },
+  "reddit/subreddit/details": { page: 1, walks: false },
+  "reddit/subreddits/search": { page: 1, walks: true },
+  "reddit/search/comments": { page: 1, topicHold: 4, walks: true },
   "reddit/post/comments": { page: 5, walks: true },
   "reddit/profile": { page: 1, walks: false },
   "reddit/profile/posts": { page: 1, walks: true },
@@ -59,6 +70,22 @@ export const RATES: Record<string, Rate> = {
   "linkedin/search/posts": { page: 5, topicHold: 8, walks: true },
   "linkedin/profile/posts": { page: 5, walks: false },
   "linkedin/post/comments": { page: 5, walks: true },
+  "linkedin/company": { page: 5, walks: false },
+  "linkedin/profile": { page: 5, walks: false },
+  "linkedin/company/posts": { page: 5, walks: true },
+  "tiktok/profile": { page: 1, walks: false },
+  "tiktok/post": { page: 1, walks: false },
+  "tiktok/search/hashtag": { page: 1, walks: true },
+  "tiktok/video/screen-text": { page: 5, walks: false, note: "10 with frames=all" },
+  "instagram/profile": { page: 1, walks: false },
+  "instagram/profile/posts": { page: 1, walks: true },
+  "instagram/post": { page: 1, walks: false },
+  "instagram/search/hashtag": { page: 1, walks: true },
+  "instagram/media/screen-text": { page: 5, walks: false, note: "10 with frames=all" },
+  "threads/profile": { page: 1, walks: false },
+  "threads/user/posts": { page: 1, walks: false, note: "one window of about 15 posts; limit above 15 is 3 per post" },
+  "threads/post/comments": { page: 1, walks: false, note: "about 20 replies; limit above 25 is metered" },
+  "twitter/user/media": { page: 1, walks: true },
   "github/repo": { page: 1, walks: false },
   "prism/launch-echo": { page: 20, walks: false },
   "utility/estimate": { page: 0, walks: false },
@@ -102,6 +129,14 @@ export function rateOf(endpoint: string): Rate {
   const r = RATES[endpoint.replace(/^\/?(v1\/)?/, "")];
   if (!r) throw new Error(`No rate for ${endpoint}: add it to RATES (src/engine/rates.ts) before a skill calls it.`);
   return r;
+}
+
+/** What a POST batch costs: `page` per started chunk of `perIds` ids, or one page without ids. */
+export function postCost(endpoint: string, json: unknown): number {
+  const r = rateOf(endpoint);
+  const ids = (json as { ids?: unknown } | null)?.ids;
+  if (!r.perIds || !Array.isArray(ids) || ids.length === 0) return r.page;
+  return Math.ceil(ids.length / r.perIds) * r.page;
 }
 
 /** The dry run: what each stage will cost, from the table alone (free, no network). */

@@ -9,7 +9,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
-import { Budget, BudgetSpent, CostLedger, metaBlock } from "../engine/rates.ts";
+import { Budget, BudgetSpent, CostLedger, metaBlock, postCost } from "../engine/rates.ts";
 import type { Meta } from "../engine/rates.ts";
 import { ApiError, OutOfCredits } from "./kit.ts";
 import type { ApiBody, Params } from "./kit.ts";
@@ -19,6 +19,8 @@ export interface CallRecord {
   stage: string;
   endpoint: string;
   params: Params;
+  /** The body of a POST batch. */
+  json?: unknown;
   status: number;
   requestId: string | null;
   /** The request ids of the pages a walk read, when the API lists them. */
@@ -31,6 +33,7 @@ export interface CallRecord {
 /** The slice of the kit a Session needs (createKit's return fits). */
 export interface Caller {
   call(path: string, params?: Params): Promise<ApiBody>;
+  post?(path: string, json: unknown, params?: Params): Promise<ApiBody>;
 }
 
 export interface SessionOptions {
@@ -87,10 +90,26 @@ export class Session {
       }
       throw e;
     }
+    return this.send(stage, endpoint, params, undefined, () => this.kit.call(endpoint, params));
+  }
+
+  /** A POST batch (youtube/videos, youtube/channels, youtube/transcripts), priced by its ids. */
+  async post(stage: string, endpoint: string, json: unknown, stageMax = Infinity): Promise<CallRecord | null> {
+    const cost = postCost(endpoint, json);
+    if (cost > Math.min(stageMax, this.budget.left)) {
+      this.notRead.push({ stage, endpoint, reason: "budget" });
+      return null;
+    }
+    const post = this.kit.post;
+    if (!post) throw new Error("This kit cannot POST.");
+    return this.send(stage, endpoint, {}, json, () => post.call(this.kit, endpoint, json));
+  }
+
+  private async send(stage: string, endpoint: string, params: Params, json: unknown, request: () => Promise<ApiBody>): Promise<CallRecord | null> {
     let body: ApiBody;
     let status = 200;
     try {
-      body = await this.kit.call(endpoint, params);
+      body = await request();
     } catch (e) {
       if (e instanceof OutOfCredits) throw e;
       if (!(e instanceof ApiError)) throw e;
@@ -104,6 +123,7 @@ export class Session {
       stage,
       endpoint,
       params,
+      ...(json === undefined ? {} : { json }),
       status,
       requestId: body.request_id ?? null,
       walkRequestIds: Array.isArray(data?.walk?.request_ids) ? (data.walk.request_ids as string[]) : [],

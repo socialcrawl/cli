@@ -88,6 +88,50 @@ describe("Session.call", () => {
   });
 });
 
+describe("Session.post", () => {
+  function postKit(answers: ApiBody[]) {
+    const sent: { path: string; json: unknown }[] = [];
+    return {
+      sent,
+      async call(): Promise<ApiBody> {
+        throw new Error("GET not expected");
+      },
+      async post(p: string, json: unknown): Promise<ApiBody> {
+        sent.push({ path: p, json });
+        return answers.shift()!;
+      },
+    };
+  }
+
+  it("sends a batch body, keeps the response and books its credits", async () => {
+    const d = dir();
+    const kit = postKit([ok(5, "req-batch")]);
+    const s = new Session({ dir: d, kit, budget: new Budget(20), skill: "test-skill", version: "0.0.0" });
+    const ids = Array.from({ length: 28 }, (_, i) => `v${i}`);
+    const rec = await s.post("details:youtube", "youtube/videos", { ids });
+    assert.ok(rec);
+    assert.deepEqual(kit.sent[0], { path: "youtube/videos", json: { ids } });
+    assert.equal(s.budget.spent, 5);
+    assert.equal(loadRecords(d)[0].requestId, "req-batch");
+  });
+
+  it("does not send a batch its ids would price past the budget", async () => {
+    const kit = postKit([]);
+    const s = new Session({ dir: dir(), kit, budget: new Budget(9), skill: "test-skill", version: "0.0.0" });
+    const rec = await s.post("details:youtube", "youtube/videos", { ids: Array.from({ length: 51 }, (_, i) => `v${i}`) });
+    assert.equal(rec, null);
+    assert.equal(kit.sent.length, 0);
+    assert.deepEqual(s.notRead, [{ stage: "details:youtube", endpoint: "youtube/videos", reason: "budget" }]);
+  });
+
+  it("respects the stage's own share", async () => {
+    const kit = postKit([]);
+    const s = new Session({ dir: dir(), kit, budget: new Budget(100), skill: "test-skill", version: "0.0.0" });
+    assert.equal(await s.post("transcripts", "youtube/transcripts", { ids: ["a", "b"] }, 5), null);
+    assert.equal(kit.sent.length, 0);
+  });
+});
+
 describe("Session progress", () => {
   it("prints one line per stage with its calls and credits", async () => {
     const lines: string[] = [];
