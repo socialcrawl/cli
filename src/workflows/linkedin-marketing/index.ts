@@ -68,7 +68,7 @@ export function buildResult(out: LinkedInOutput, input: LinkedInInput, deep: boo
   const f1 = ev.add({
     claim: `${headline}, of ${out.rows.length} posts read from ${authors.length} authors`,
     confidence: searchIds.length ? "seen" : "unknown",
-    numbers: { breakouts: viral.length, posts: out.rows.length, authors: authors.length, people_measured: out.people.length, company_posts: out.companies.length, other_members: others.length, other_member_posts: otherPosts },
+    numbers: { breakouts: viral.length, posts: out.rows.length, authors: authors.length, people_measured: out.people.length, company_posts: out.companies.length, other_members: others.length, other_member_posts: otherPosts, listed_authors: Math.min(listed.length, 10) },
     requests: searchIds,
   });
   const findingOf = new Map<ViralItem, string>();
@@ -125,7 +125,7 @@ export function buildResult(out: LinkedInOutput, input: LinkedInInput, deep: boo
   ].join("\n");
 
   const topAuthors = listed.slice(0, 10);
-  const othersLine = `${others.length} ${topAuthors.length ? "other " : ""}member${others.length === 1 ? "" : "s"} posted ${otherPosts} post${otherPosts === 1 ? "" : "s"} between them; they are under ${n(NAME_FLOOR)} followers or their follower count was not read, so they are not named here. data/posts.csv lists each post.`;
+  const othersLine = `${topAuthors.length ? `Besides the ${topAuthors.length} author${topAuthors.length === 1 ? "" : "s"} listed above, ` : ""}${others.length} member${others.length === 1 ? "" : "s"} posted ${otherPosts} post${otherPosts === 1 ? "" : "s"} between them; they are under ${n(NAME_FLOOR)} followers or their follower count was not read, so they are not named here. data/posts.csv lists each post.`;
   const whoMost = authors.length
     ? [
         ...(topAuthors.length ? ["| Author | Kind | Posts | Likes |", "| --- | --- | --- | --- |", ...topAuthors.map((a) => `| ${whoA(a)} | ${a.company ? "company" : "member"} | ${a.posts} | ${n(a.likes)} |`), ""] : []),

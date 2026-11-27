@@ -121,7 +121,7 @@ describe("linkedin-marketing: a whole run", () => {
     assert.ok(most.includes("| acme-tools | company | 2 | 490 |"), most);
     assert.ok(most.includes("| big-voice | member | 1 | 60 |"), most);
     assert.ok(!most.includes("| a member"), most);
-    assert.match(most, /2 other members posted 2 posts between them/);
+    assert.match(most, /Besides the 2 authors listed above, 2 members posted 2 posts between them/);
   });
 
   it("says '1 of the N comments is phrased as a question' in the singular", async () => {
