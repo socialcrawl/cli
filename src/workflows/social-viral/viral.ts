@@ -179,8 +179,9 @@ export function candidatesOf(records: ResponseRecord[], w: ViralWindow, exclude:
 }
 
 /** Stage 3: the baseline plan, platform by platform, each inside its share. */
-export function planViralBaselines(cands: Row[], shares: Record<ViralPlatform, number> = BASELINE_SHARE): BaselinePlan[] {
-  return VIRAL_PLATFORMS.map((p) => planBaselines(cands, p, { budget: shares[p] }));
+/** `confirm` caps the authors read per platform; a platform left out keeps the engine's DEFAULT_CONFIRM. */
+export function planViralBaselines(cands: Row[], shares: Record<ViralPlatform, number> = BASELINE_SHARE, confirm: Partial<Record<ViralPlatform, number>> = {}): BaselinePlan[] {
+  return VIRAL_PLATFORMS.map((p) => planBaselines(cands, p, { budget: shares[p], confirm: confirm[p] }));
 }
 
 export interface BaselinePage {

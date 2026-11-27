@@ -86,8 +86,8 @@ type Params = Record<string, string | number | boolean | undefined>;
  * When a page holds fewer than 8 earlier comparable posts, one more page is read while the
  * platform's share can pay for it. Shared by every workflow that measures break-outs.
  */
-export async function readBaselines(session: Session, rows: Row[], shares: Record<ViralPlatform, number>, now: () => Date): Promise<{ plans: BaselinePlan[]; pages: BaselinePage[] }> {
-  const plans = planViralBaselines(rows, shares);
+export async function readBaselines(session: Session, rows: Row[], shares: Record<ViralPlatform, number>, now: () => Date, opts: { confirm?: Partial<Record<ViralPlatform, number>> } = {}): Promise<{ plans: BaselinePlan[]; pages: BaselinePage[] }> {
+  const plans = planViralBaselines(rows, shares, opts.confirm ?? {});
   const pages: BaselinePage[] = [];
   const baselineParams = (endpoint: string, params: Params) =>
     TOPIC_LANES.has(endpoint) ? { ...params, judgments: "off" } : stageParams(endpoint, { ...params }, { labels: "off" });
