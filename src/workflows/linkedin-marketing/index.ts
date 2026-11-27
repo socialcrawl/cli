@@ -53,6 +53,10 @@ export function buildResult(out: LinkedInOutput, input: LinkedInInput, deep: boo
   for (const rec of out.records) if (rec.stage.startsWith("search:") || rec.stage.startsWith("comments:")) ev.cover(rec, rec.stage);
   const searchIds = out.search ? requestIdsOf(out.search) : [];
   const authors = authorsOf(out.rows);
+  // Companies and members from 10,000 followers are listed; the other members are summed up.
+  const listed = authors.filter((a) => !whoA(a).startsWith("a member"));
+  const others = authors.filter((a) => whoA(a).startsWith("a member"));
+  const otherPosts = others.reduce((t, a) => t + a.posts, 0);
   const viral = out.result.items.filter((i) => i.viral);
   const period = deep ? "month" : "week";
   const headline = out.search
@@ -63,7 +67,7 @@ export function buildResult(out: LinkedInOutput, input: LinkedInInput, deep: boo
   const f1 = ev.add({
     claim: `${headline}, of ${out.rows.length} posts read from ${authors.length} authors`,
     confidence: searchIds.length ? "seen" : "unknown",
-    numbers: { breakouts: viral.length, posts: out.rows.length, authors: authors.length, people_measured: out.people.length, company_posts: out.companies.length },
+    numbers: { breakouts: viral.length, posts: out.rows.length, authors: authors.length, people_measured: out.people.length, company_posts: out.companies.length, other_members: others.length, other_member_posts: otherPosts },
     requests: searchIds,
   });
   const findingOf = new Map<ViralItem, string>();
@@ -119,9 +123,15 @@ export function buildResult(out: LinkedInOutput, input: LinkedInInput, deep: boo
       : ["No member's post was above the floor with enough earlier posts to compare."]),
   ].join("\n");
 
-  const topAuthors = authors.slice(0, 10);
-  const whoMost = topAuthors.length
-    ? ["| Author | Kind | Posts | Likes |", "| --- | --- | --- | --- |", ...topAuthors.map((a) => `| ${whoA(a)} | ${a.company ? "company" : "member"} | ${a.posts} | ${n(a.likes)} |`)].join("\n")
+  const topAuthors = listed.slice(0, 10);
+  const othersLine = `${others.length} ${topAuthors.length ? "other " : ""}member${others.length === 1 ? "" : "s"} posted ${otherPosts} post${otherPosts === 1 ? "" : "s"} between them; they are under ${n(NAME_FLOOR)} followers or their follower count was not read, so they are not named here. data/posts.csv lists each post.`;
+  const whoMost = authors.length
+    ? [
+        ...(topAuthors.length ? ["| Author | Kind | Posts | Likes |", "| --- | --- | --- | --- |", ...topAuthors.map((a) => `| ${whoA(a)} | ${a.company ? "company" : "member"} | ${a.posts} | ${n(a.likes)} |`), ""] : []),
+        ...(others.length ? [othersLine] : []),
+      ]
+        .join("\n")
+        .trim()
     : "No post was read.";
 
   const commentsBody = [

@@ -110,6 +110,15 @@ describe("linkedin-marketing: a whole run", () => {
     assert.ok(md.includes("How does it handle a large repo?"));
   });
 
+  it("lists companies and named members, and sums up the other members in one line", async () => {
+    const md = (await runOnce()).read("report.md");
+    const most = md.split("## Who posts most")[1].split("## ")[0];
+    assert.ok(most.includes("| acme-tools | company | 2 | 490 |"), most);
+    assert.ok(most.includes("| big-voice | member | 1 | 60 |"), most);
+    assert.ok(!most.includes("| a member"), most);
+    assert.match(most, /2 other members posted 2 posts between them/);
+  });
+
   it("says plainly what LinkedIn does not give", async () => {
     const r = await runOnce();
     const ev = JSON.parse(r.read("evidence.json")) as EvidenceJson;
