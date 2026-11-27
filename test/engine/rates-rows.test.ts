@@ -10,6 +10,7 @@ const ROWS: Record<string, { page: number; walks: boolean; topicHold?: number; p
   "reddit/subreddits/search": { page: 1, walks: true },
   "reddit/search/comments": { page: 1, walks: true, topicHold: 4 },
   "youtube/channel/shorts": { page: 1, walks: true },
+  "prism/discover": { page: 0, walks: false },
   "tiktok/adlibrary/search": { page: 5, walks: true },
   "reddit/post": { page: 1, walks: false },
   "youtube/videos": { page: 5, walks: false, perIds: 50 },

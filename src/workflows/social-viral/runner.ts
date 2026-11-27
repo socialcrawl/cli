@@ -2,6 +2,7 @@
 // every call under the run's one budget, every response kept, every credit booked.
 // Stops cleanly when the budget is spent: what was not read is reported, never guessed.
 import { breakoutWithPage, morePage } from "../../engine/baseline.ts";
+import type { BaselinePlan } from "../../engine/baseline.ts";
 import { retweeterRead } from "../../engine/boosted.ts";
 import type { CostLedger, Meta } from "../../engine/rates.ts";
 import { rowsOf } from "../../engine/rows.ts";
@@ -18,7 +19,7 @@ import {
   rankViral,
   searchCeilings,
 } from "./viral.ts";
-import type { BaselinePage, Candidates, PlanInput, ViralItem, ViralResult } from "./viral.ts";
+import type { BaselinePage, Candidates, PlanInput, ViralItem, ViralPlatform, ViralResult } from "./viral.ts";
 
 export interface ViralRunOptions {
   /** Retweeter pages read for the top X break-outs (1 credit each), to test the boosted rule. */
@@ -79,27 +80,19 @@ export interface ViralRunOutput {
 
 type Params = Record<string, string | number | boolean | undefined>;
 
-export async function runViral(session: Session, input: PlanInput, opts: ViralRunOptions = {}): Promise<ViralRunOutput> {
-  const now = opts.now ?? (() => new Date());
-  const ok = () => session.records.filter((r) => r.status === 200);
-
-  // 1. search. Each search may spend at most its own quoted ceiling, never what is left of the run.
-  const search = planSearch(input);
-  const ceilings = searchCeilings(search);
-  for (const [k, c] of search.entries()) await session.call(c.stage, c.endpoint, c.params, ceilings[k]);
-
-  // 2. floor
-  const candidates = candidatesOf(ok().filter((r) => r.stage.startsWith("search:")), input);
-
-  // 3. baselines, each platform inside its share. A baseline is the author's own earlier
-  // posts (study file 25): never topic-filtered, and with judging off. When a page holds fewer
-  // than 8 earlier comparable posts, one more page is read while the platform's share can pay.
-  const plans = planViralBaselines(candidates.rows);
+/**
+ * Each candidate's author's earlier posts, platform by platform inside its share. A baseline is
+ * the author's own earlier posts (study file 25): never topic-filtered, and with judging off.
+ * When a page holds fewer than 8 earlier comparable posts, one more page is read while the
+ * platform's share can pay for it. Shared by every workflow that measures break-outs.
+ */
+export async function readBaselines(session: Session, rows: Row[], shares: Record<ViralPlatform, number>, now: () => Date): Promise<{ plans: BaselinePlan[]; pages: BaselinePage[] }> {
+  const plans = planViralBaselines(rows, shares);
   const pages: BaselinePage[] = [];
   const baselineParams = (endpoint: string, params: Params) =>
     TOPIC_LANES.has(endpoint) ? { ...params, judgments: "off" } : stageParams(endpoint, { ...params }, { labels: "off" });
   for (const plan of plans) {
-    const share = Math.floor(BASELINE_SHARE[plan.platform as keyof typeof BASELINE_SHARE] * (opts.shareScale ?? 1));
+    const share = shares[plan.platform as ViralPlatform] ?? 0;
     let spent = 0;
     for (const step of plan.steps) {
       const stage = `baseline:${plan.platform}`;
@@ -109,7 +102,7 @@ export async function runViral(session: Session, input: PlanInput, opts: ViralRu
       const page: BaselinePage = { step, rows: rowsOf(rec) };
       pages.push(page);
       const thin = step.rowIds
-        .map((id) => candidates.rows.find((r) => r.id === id))
+        .map((id) => rows.find((r) => r.id === id))
         .filter((r): r is NonNullable<typeof r> => r !== undefined)
         .map((r) => breakoutWithPage(r, page.rows, { now: now() }))
         .find((b) => b.band === "too_few");
@@ -123,6 +116,25 @@ export async function runViral(session: Session, input: PlanInput, opts: ViralRu
       }
     }
   }
+  return { plans, pages };
+}
+
+export async function runViral(session: Session, input: PlanInput, opts: ViralRunOptions = {}): Promise<ViralRunOutput> {
+  const now = opts.now ?? (() => new Date());
+  const ok = () => session.records.filter((r) => r.status === 200);
+
+  // 1. search. Each search may spend at most its own quoted ceiling, never what is left of the run.
+  const search = planSearch(input);
+  const ceilings = searchCeilings(search);
+  for (const [k, c] of search.entries()) await session.call(c.stage, c.endpoint, c.params, ceilings[k]);
+
+  // 2. floor
+  const candidates = candidatesOf(ok().filter((r) => r.stage.startsWith("search:")), input);
+
+  // 3. baselines, each platform inside its share (a deep run gives each a larger one).
+  const scale = opts.shareScale ?? 1;
+  const shares = Object.fromEntries(Object.entries(BASELINE_SHARE).map(([p, v]) => [p, Math.floor(v * scale)])) as Record<ViralPlatform, number>;
+  const { plans, pages } = await readBaselines(session, candidates.rows, shares, now);
 
   // 4 to 6. ratio, flags, rank; the top X break-outs get one retweeter page each.
   let result = rankViral(candidates.rows, plans, pages, { now: now() });

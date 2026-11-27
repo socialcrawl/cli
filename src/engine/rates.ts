@@ -91,6 +91,9 @@ export const RATES: Record<string, Rate> = {
   "twitter/user/media": { page: 1, walks: true },
   "github/repo": { page: 1, walks: false },
   "prism/launch-echo": { page: 20, walks: false },
+  // Metered: each platform leg bills its own search price and judging is billed per row, so a
+  // workflow sends max_credits from the free dry run (dry_run=true, estimate.min_max_credits).
+  "prism/discover": { page: 0, walks: false, note: "metered; max_credits from the dry run" },
   "utility/estimate": { page: 0, walks: false },
   "credits/balance": { page: 0, walks: false },
 };
