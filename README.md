@@ -25,11 +25,12 @@ socialcrawl social-viral "AI coding tools"
 | Workflow | Give it | Default run, measured | At most |
 | --- | --- | --- | --- |
 | [`social-viral`](https://github.com/socialcrawl/workflows/tree/main/skills/social-viral) | a topic | 61 credits | 100 |
+| [`social-pulse`](https://github.com/socialcrawl/workflows/tree/main/skills/social-pulse) | a brand or topic | 41 credits | 100 |
 | [`tiktok-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/tiktok-marketing) | a keyword | 40 credits | 55 |
 | [`instagram-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/instagram-marketing) | a keyword | 48 credits | 60 |
 | [`youtube-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/youtube-marketing) | a keyword | 41 credits | 49 |
 
-Each was measured once on "AI coding tools" on 27/11/2026 with nothing cached; each workflow's page gives its request ids. Every default run fits in the 100 credits a new account starts with. `socialcrawl --help` lists the workflows your version has.
+Each was measured once on 27/11/2026 with nothing cached (on "AI coding tools", or "Notion" for social-pulse); each workflow's page gives its request ids. Every default run fits in the 100 credits a new account starts with. `socialcrawl --help` lists the workflows your version has.
 
 ## Example
 
