@@ -1,0 +1,98 @@
+// instagram-marketing against a fake API: the undated reel search (a dated one carries no
+// views, file 26 SR-40), two profile pages per creator, a follower read only for the
+// break-outs' authors (search rows carry no follower count), and the naming rule on its result.
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+
+import { renderCard, renderReport } from "../../../src/engine/index.ts";
+import { runVideo } from "../../../src/workflows/_video/run.ts";
+import { workflow } from "../../../src/workflows/instagram-marketing/index.ts";
+import { INSTAGRAM } from "../../../src/workflows/instagram-marketing/spec.ts";
+import { fakeSession, history, post } from "../_video/fake-kit.ts";
+import type { Route } from "../_video/fake-kit.ts";
+
+const NOW = new Date("2026-11-27T12:00:00Z");
+const ARGS = { input: "AI coding tools", flags: {}, deep: false, now: NOW };
+const reel = (o: Parameters<typeof post>[0]) => {
+  const p = post({ ...o, url: `https://www.instagram.com/reel/${o.id}/`, ext: { media_type: "video", ...(o.ext ?? {}) } });
+  return p;
+};
+const R1 = reel({ id: "R1", author: "bigbrand", views: 500_000, at: "2026-11-20T15:00:00Z", text: "7 FREE Claude Code Skills You NEED" });
+const R2 = reel({ id: "R2", author: "smalldev", views: 60_000, at: "2026-11-19T10:00:00Z", text: 'Comment "AGENT" for the guide' });
+const R3 = reel({ id: "R3", author: "steady", views: 20_000, at: "2026-11-18T10:00:00Z" });
+
+function world(): Route[] {
+  return [
+    { endpoint: "instagram/search/reels", data: { items: [R1, R2, R3], relevance: { mode: "filter", rows: 3, kept: 3, dropped: 0 } } },
+    { endpoint: "instagram/profile/reels", when: (p) => p.handle === "bigbrand", data: { items: history("bigbrand", 20, 10_000, "2026-11-20T00:00:00Z", { ext: { media_type: "video", music_id: "a1", music: { id: "a1", track_title: "Licensed Song" } } }) } },
+    { endpoint: "instagram/profile/reels", when: (p) => p.handle === "smalldev", data: { items: history("smalldev", 12, 2_000, "2026-11-19T00:00:00Z", { ext: { media_type: "video" } }) } },
+    { endpoint: "instagram/profile/reels", when: (p) => p.handle === "steady", data: { items: history("steady", 12, 19_000, "2026-11-18T00:00:00Z", { ext: { media_type: "video" } }) } },
+    { endpoint: "instagram/post/comments", data: { items: [{ comment: { id: "c1", text: "Where do I get this?", author: { username: "x" }, engagement: { likes: 3 } }, computed: { labels: { question: { p: 0.9 }, purchase_intent: { p: 0.8 }, complaint: { p: 0 }, sentiment: { level: 4 } } } }], labels: { status: "complete", labelled: 1 } } },
+    { endpoint: "instagram/media/transcript", data: { transcripts: [{ id: "R1", text: "Here are seven skills." }] } },
+    { endpoint: "instagram/profile", when: (p) => p.handle === "bigbrand", data: { author: { username: "bigbrand", followers: 250_000 } } },
+    { endpoint: "instagram/profile", when: (p) => p.handle === "smalldev", data: { author: { username: "smalldev", followers: 3_100 } } },
+  ];
+}
+
+describe("instagram-marketing: the run", () => {
+  it("searches reels without a date window, so the rows carry views", async () => {
+    const { kit, session } = fakeSession(world());
+    await runVideo(session, INSTAGRAM, ARGS);
+    const searches = kit.sent.filter((s) => s.endpoint === "instagram/search/reels");
+    assert.ok(searches.length >= 1);
+    for (const s of searches) {
+      assert.equal(s.params.date_posted, undefined);
+      assert.equal(s.params.relevance, "filter");
+      assert.ok(Number(s.params.max_pages) >= 1);
+    }
+  });
+
+  it("reads two profile pages per creator and measures each reel against the reels before it", async () => {
+    const { kit, session } = fakeSession(world());
+    const run = await runVideo(session, INSTAGRAM, ARGS);
+    for (const s of kit.sent.filter((x) => x.endpoint === "instagram/profile/reels")) {
+      assert.equal(Number(s.params.max_pages), 2);
+      assert.equal(s.params.judgments, "off");
+    }
+    const by = new Map(run.items.map((i) => [i.row.id, i]));
+    assert.equal(by.get("R1")?.breakout.multiple, 50);
+    assert.equal(by.get("R2")?.breakout.multiple, 30);
+    assert.equal(by.get("R3")?.viral, false);
+  });
+
+  it("reads follower counts for the most viewed creators first, then baselines the best views over followers first", async () => {
+    const { kit, session } = fakeSession(world());
+    await runVideo(session, { ...INSTAGRAM, confirm: { default: 1, deep: 1 } }, ARGS);
+    const firstProfile = kit.sent.findIndex((s) => s.endpoint === "instagram/profile");
+    const firstBaseline = kit.sent.findIndex((s) => s.endpoint === "instagram/profile/reels");
+    assert.ok(firstProfile >= 0 && firstProfile < firstBaseline, "followers before baselines");
+    const read = kit.sent.filter((s) => s.endpoint === "instagram/profile/reels").map((s) => s.params.handle);
+    assert.deepEqual(read, ["smalldev"], "60,000 views on 3,100 followers before 500,000 on 250,000");
+  });
+
+  it("reads each creator's followers once, and names only the large one", async () => {
+    const { kit, session } = fakeSession(world());
+    const out = await workflow.run(session, ARGS);
+    const profiles = kit.sent.filter((s) => s.endpoint === "instagram/profile").map((s) => s.params.handle);
+    assert.equal(new Set(profiles).size, profiles.length, "no creator read twice");
+    const md = renderReport(out.report) + renderCard(out.card);
+    assert.match(md, /@bigbrand/);
+    assert.doesNotMatch(md, /smalldev/);
+    assert.match(md, /a creator with 3,100 followers/);
+    assert.match(md, /Here are seven skills/);
+    assert.ok(session.ledger.credits <= workflow.defaultBudget);
+  });
+
+  it("says 'its' for a single break-out", async () => {
+    const one = world().map((r) => (r.endpoint === "instagram/search/reels" ? { ...r, data: { items: [R1, R3] } } : r));
+    const { session } = fakeSession(one);
+    const out = await workflow.run(session, ARGS);
+    assert.match(out.card.headlines[0], /^1 reel broke out at 3x or more its creator's usual views/);
+    assert.match(out.report.summary[0], /^1 of 2 reels with a baseline broke out at 3 times or more its creator's/);
+  });
+
+  it("quotes a default run inside its budget", async () => {
+    const q = await workflow.quote(ARGS);
+    assert.ok(q.max <= workflow.defaultBudget, `max ${q.max}`);
+  });
+});

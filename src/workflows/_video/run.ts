@@ -130,8 +130,23 @@ export async function runVideo(session: Session, spec: VideoSpec, args: Workflow
     if (!groups.has(k)) groups.set(k, []);
     groups.get(k)!.push(r);
   }
+  // Follower counts for the most viewed creators, where the search rows carry none (Instagram),
+  // so views over followers can order who gets a baseline.
+  const readFollowers = async (r: Row) => {
+    if (!spec.names) return;
+    const rec = await session.call(`names:${spec.platform}`, spec.names.endpoint, spec.names.params(r), shares.names - spentIn(session, "names"));
+    followers.set(spec.groupKey(r), rec ? spec.names.followers(rec) : null);
+  };
+  if (spec.names?.preRead) {
+    const byViews = [...groups.values()].sort((a, b) => Math.max(...b.map((r) => r.views ?? 0)) - Math.max(...a.map((r) => r.views ?? 0)));
+    for (const g of byViews.filter((x) => !followers.has(spec.groupKey(x[0]))).slice(0, pick(spec.names.preRead))) await readFollowers(g[0]);
+  }
+  const perFollower = (r: Row) => {
+    const f = followers.get(spec.groupKey(r)) ?? r.authorFollowers;
+    return f && f > 0 && r.views !== null ? r.views / f : (viewsPerFollower(r) ?? null);
+  };
   const score = (g: Row[]) =>
-    Math.max(...g.map((r) => (spec.preRank === "views_per_follower" ? (viewsPerFollower(r) ?? (r.views ?? 0) / 1e9) : (r.views ?? 0))));
+    Math.max(...g.map((r) => (spec.preRank === "views_per_follower" ? (perFollower(r) ?? (r.views ?? 0) / 1e9) : (r.views ?? 0))));
   const ordered = [...groups.entries()].sort((a, b) => score(b[1]) - score(a[1]) || a[0].localeCompare(b[0]));
   const unread: VideoRun["unread"] = [];
   const baselines: VideoRun["baselines"] = [];
@@ -235,8 +250,7 @@ export async function runVideo(session: Session, spec: VideoSpec, args: Workflow
       const k = spec.groupKey(r);
       if (seen.has(k) || seen.size >= pick(spec.names.max)) continue;
       seen.add(k);
-      const rec = await session.call(`names:${spec.platform}`, spec.names.endpoint, spec.names.params(r), shares.names - spentIn(session, "names"));
-      if (rec) followers.set(k, spec.names.followers(rec));
+      await readFollowers(r);
     }
   }
 

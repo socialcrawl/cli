@@ -66,7 +66,7 @@ export function videoQuote(spec: VideoSpec, deep: boolean): WorkflowQuote {
   const t = rateOf(spec.transcripts.endpoint).page * pick(spec.transcripts.posts);
   stage("transcripts", t, t, sh.transcript);
   if (spec.names) {
-    const k = rateOf(spec.names.endpoint).page * pick(spec.names.max);
+    const k = rateOf(spec.names.endpoint).page * (pick(spec.names.max) + (spec.names.preRead ? pick(spec.names.preRead) : 0));
     stage("names", k, k, sh.names);
   }
   lines.push(`Total: about ${expected} credits, at most ${max}.`);

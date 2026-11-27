@@ -69,6 +69,14 @@ export interface VideoSpec {
     text(rec: ResponseRecord, row: Row): string | null;
   };
   /** Optional: read follower counts for accounts the report would name (Instagram rows carry none). */
-  names?: { endpoint: string; params(row: Row): Params; followers(rec: ResponseRecord): number | null; max: Depth<number> };
+  names?: {
+    endpoint: string;
+    params(row: Row): Params;
+    followers(rec: ResponseRecord): number | null;
+    /** Reads after ranking, for break-outs whose authors were not read yet. */
+    max: Depth<number>;
+    /** Reads before ranking, for the most viewed candidates' authors, so views over followers can order who gets a baseline. */
+    preRead?: Depth<number>;
+  };
   shares: Depth<Shares>;
 }

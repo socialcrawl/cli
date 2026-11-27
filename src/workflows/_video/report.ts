@@ -286,7 +286,7 @@ export function videoResult(spec: VideoSpec, run: VideoRun, session: Session, ar
   const summary: string[] = [];
   summary.push(
     viral.length
-      ? `${viral.length} of ${measured.length} ${P}s with a baseline broke out at ${BANDS.beat} times or more their ${A}'s usual views, out of ${run.candidates.rows.length} candidates above the floor [${F1.id}].`
+      ? `${viral.length} of ${measured.length} ${P}s with a baseline broke out at ${BANDS.beat} times or more ${viral.length === 1 ? "its" : "their"} ${A}'s usual views, out of ${run.candidates.rows.length} candidates above the floor [${F1.id}].`
       : `No ${P} broke out: none of the ${measured.length} with a baseline reached ${BANDS.beat} times its ${A}'s usual views [${F1.id}].`,
   );
   if (lead) summary.push(`The largest: ${label(lead.row)}, ${times(lead.breakout.multiple)} over ${lead.breakout.peers} earlier ${P}s [${itemFinding.get(lead.row.id)}].`);
@@ -341,7 +341,7 @@ function cardHeadlines(spec: VideoSpec, run: VideoRun, viral: VideoItem[], label
   const P = spec.postNoun;
   const fit = (s: string) => (s.length <= 110 ? s : s.slice(0, 109).replace(/\s+\S*$/, "") + "…");
   const out: string[] = [];
-  if (viral.length) out.push(fit(`${viral.length} ${plural(viral.length, P)} broke out at ${BANDS.beat}x or more their ${spec.accountNoun}'s usual views (${run.items.length} of ${run.candidates.rows.length} measured)`));
+  if (viral.length) out.push(fit(`${viral.length} ${plural(viral.length, P)} broke out at ${BANDS.beat}x or more ${viral.length === 1 ? "its" : "their"} ${spec.accountNoun}'s usual views (${run.items.length} of ${run.candidates.rows.length} measured)`));
   else out.push(fit(`No ${P} reached ${BANDS.beat}x its ${spec.accountNoun}'s usual views (${run.items.length} measured)`));
   const lead = viral[0];
   if (lead) out.push(fit(`Top: ${label(lead.row)}, ${times(lead.breakout.multiple)} over ${lead.breakout.peers} earlier ${P}s`));
