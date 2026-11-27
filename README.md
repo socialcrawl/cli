@@ -31,6 +31,7 @@ socialcrawl social-viral "AI coding tools"
 | [`tiktok-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/tiktok-marketing) | a keyword | 38 credits | 55 |
 | [`instagram-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/instagram-marketing) | a keyword | 39 credits | 60 |
 | [`youtube-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/youtube-marketing) | a keyword | 34 credits | 49 |
+| [`x-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/x-marketing) | a keyword | 36 credits | 55 |
 | [`competitor-research`](https://github.com/socialcrawl/workflows/tree/main/skills/competitor-research) | two to five brands | 48 credits | 100 |
 | [`post-tracker`](https://github.com/socialcrawl/workflows/tree/main/skills/post-tracker) | a post link | 2 to 5 credits, then 1 a reading | 10 |
 
