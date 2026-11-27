@@ -179,8 +179,12 @@ describe("social-viral: a whole run on the recorded responses", () => {
     out.notRead.push({ stage: "baseline:tiktok", endpoint: "tiktok/profile/videos", reason: "budget", limit: "run" });
     const ev = buildResult(out, input, false).report.evidence.toJSON();
     const says = (what: string, why: RegExp) => ev.unverified.some((u) => u.what === what && why.test(u.why));
-    assert.ok(says("baseline:x, twitter/search/tweets", /this platform's share of the budget was spent/));
-    assert.ok(says("baseline:tiktok, tiktok/profile/videos", /the run's budget had run out/));
+    assert.ok(says("baseline:x, twitter/search/tweets", /^not measured: X's share of this run was used up; --deep reads more$/));
+    assert.ok(says("baseline:tiktok, tiktok/profile/videos", /^not measured: this run's credits were used up; a larger --budget reads more$/));
+    // Candidates the planner left out for their platform's share say the same, in the same words.
+    for (const u of ev.unverified.filter((x) => /candidates? with no multiple/.test(x.what) && /share/.test(x.why))) {
+      assert.match(u.why, /^not measured: (X|TikTok|Instagram|YouTube|Reddit|LinkedIn)'s share of this run was used up; --deep reads more$/);
+    }
   });
 
   it("counts only accounts known to be under 10,000 followers as small", async () => {

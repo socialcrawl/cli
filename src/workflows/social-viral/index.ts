@@ -114,10 +114,12 @@ function tables(out: ViralRunOutput): Record<string, Table> {
   };
 }
 
-const UNREAD_WHY: Record<string, string> = {
-  budget: "the run's budget did not reach its author's earlier posts",
-  planned_not_read: "the run's budget or the API stopped before its author's earlier posts were read",
-  not_planned: "no baseline call was planned for it",
+// Plain enough to survive an agent's paraphrase: which limit, and what reads more.
+const shareUsedUp = (p: Platform) => `not measured: ${label(p)}'s share of this run was used up; --deep reads more`;
+const UNREAD_WHY: Record<string, (p: Platform) => string> = {
+  budget: shareUsedUp,
+  planned_not_read: () => "not measured: the run stopped before its author's earlier posts were read",
+  not_planned: () => "not measured: no read of its author's earlier posts was planned",
 };
 
 /** The report, the card, the evidence and the tables of one run. */
@@ -172,7 +174,7 @@ export function buildResult(out: ViralRunOutput, input: PlanInput, deep: boolean
   for (const u of out.result.unread) unreadBy.set(`${u.row.platform}|${u.reason}`, (unreadBy.get(`${u.row.platform}|${u.reason}`) ?? 0) + 1);
   for (const [k, count] of unreadBy) {
     const [p, reason] = k.split("|");
-    ev.unknown({ what: `${count} ${label(p as Platform)} candidate${count === 1 ? "" : "s"} with no multiple`, why: UNREAD_WHY[reason] ?? reason, check: deep ? undefined : "run again with --deep" });
+    ev.unknown({ what: `${count} ${label(p as Platform)} candidate${count === 1 ? "" : "s"} with no multiple`, why: UNREAD_WHY[reason]?.(p as Platform) ?? `not measured: ${reason}` });
   }
   const tooFew = out.result.items.filter((i) => i.breakout.band === "too_few").length;
   if (tooFew) ev.unknown({ what: `${tooFew} post${tooFew === 1 ? "" : "s"} with no multiple`, why: `their authors had fewer than ${MIN_PEERS} comparable earlier posts to compare with` });
@@ -180,8 +182,7 @@ export function buildResult(out: ViralRunOutput, input: PlanInput, deep: boolean
   for (const nr of out.notRead) {
     ev.unknown({
       what: `${nr.stage}, ${nr.endpoint}`,
-      why: nr.limit === "stage" ? "not sent: this platform's share of the budget was spent" : "not sent: the run's budget had run out",
-      ...(deep ? {} : { check: "a --deep run gives each platform a larger share" }),
+      why: nr.limit === "stage" ? shareUsedUp(nr.stage.split(":")[1] as Platform) : "not measured: this run's credits were used up; a larger --budget reads more",
     });
   }
 
