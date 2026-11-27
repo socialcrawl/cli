@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { cleanEnv, parseInstalled, skillsAddArgs } from "../../src/skills-add.ts";
+import { cleanEnv, parseInstalled, skillsAddArgs, spawnPlan } from "../../src/skills-add.ts";
 
 describe("npx skills add", () => {
   it("asks for every skill in socialcrawl/workflows, for the agents found, globally, as JSON", () => {
@@ -28,6 +28,16 @@ describe("npx skills add", () => {
 
   it("finds the JSON after any banner text", () => {
     assert.deepEqual(parseInstalled('note\n[{"name":"socialcrawl-viral","status":"installed"}]\n'), ["socialcrawl-viral"]);
+  });
+
+  it("starts npx directly, and on Windows as one shell line with * quoted, so Node prints no warning", () => {
+    const args = skillsAddArgs(["claude-code"], true);
+    assert.deepEqual(spawnPlan(args, "linux"), { command: "npx", args, shell: false });
+    assert.deepEqual(spawnPlan(args, "win32"), {
+      command: 'npx -y skills add socialcrawl/workflows --skill "*" --agent claude-code --global --yes --json',
+      args: [],
+      shell: true,
+    });
   });
 
   it("returns null for output that is not the JSON list", () => {

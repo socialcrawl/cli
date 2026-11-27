@@ -36,18 +36,27 @@ export function parseInstalled(stdout: string): string[] | null {
   }
 }
 
+/**
+ * How to start npx. Windows runs it through npx.cmd, which Node starts only with a shell, and Node
+ * warns when arguments go to a shell separately, so they go as one line. They are fixed strings.
+ */
+export function spawnPlan(args: string[], platform: string): { command: string; args: string[]; shell: boolean } {
+  if (platform !== "win32") return { command: "npx", args, shell: false };
+  return { command: ["npx", ...args.map((a) => (a === "*" ? '"*"' : a))].join(" "), args: [], shell: true };
+}
+
 /** Runs npx with no terminal input, so a prompt can only fail, never wait. */
 export const runSkillsAdd: SkillsAdd = (args, o) =>
   new Promise((resolve) => {
     let stdout = "";
     let child;
     try {
-      // Windows runs npx through npx.cmd, which Node starts only with a shell. The arguments are fixed.
-      child = spawn("npx", args.map((a) => (process.platform === "win32" && a === "*" ? '"*"' : a)), {
+      const plan = spawnPlan(args, process.platform);
+      child = spawn(plan.command, plan.args, {
         cwd: o.cwd,
         env: o.env as NodeJS.ProcessEnv,
         stdio: ["ignore", "pipe", "ignore"],
-        shell: process.platform === "win32",
+        shell: plan.shell,
         timeout: 180_000,
       });
     } catch {
