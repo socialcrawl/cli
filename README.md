@@ -27,11 +27,14 @@ socialcrawl social-viral "AI coding tools"
 | [`social-viral`](https://github.com/socialcrawl/workflows/tree/main/skills/social-viral) | a topic | 61 credits | 100 |
 | [`social-pulse`](https://github.com/socialcrawl/workflows/tree/main/skills/social-pulse) | a brand or topic | 43 credits | 100 |
 | [`social-presence`](https://github.com/socialcrawl/workflows/tree/main/skills/social-presence) | a brand or public figure, and its website | 23 credits | 43 |
-| [`tiktok-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/tiktok-marketing) | a keyword | 40 credits | 55 |
-| [`instagram-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/instagram-marketing) | a keyword | 48 credits | 60 |
-| [`youtube-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/youtube-marketing) | a keyword | 41 credits | 49 |
+| [`linkedin-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/linkedin-marketing) | a keyword | 48 credits | 74 |
+| [`tiktok-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/tiktok-marketing) | a keyword | 38 credits | 55 |
+| [`instagram-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/instagram-marketing) | a keyword | 39 credits | 60 |
+| [`youtube-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/youtube-marketing) | a keyword | 34 credits | 49 |
+| [`competitor-research`](https://github.com/socialcrawl/workflows/tree/main/skills/competitor-research) | two to five brands | 48 credits | 100 |
+| [`post-tracker`](https://github.com/socialcrawl/workflows/tree/main/skills/post-tracker) | a post link | 2 to 5 credits, then 1 a reading | 10 |
 
-Each was measured once on 27/11/2026 with nothing cached (on "AI coding tools", "Notion" for social-pulse, "Linear" for social-presence); each workflow's page gives its request ids. Every default run fits in the 100 credits a new account starts with. `socialcrawl --help` lists the workflows your version has.
+Each was measured once on 27/11/2026 with nothing cached (on "AI coding tools", "Notion" for social-pulse, "Linear" for social-presence, "Supabase, Firebase, Neon" for competitor-research, one YouTube video for post-tracker); each workflow's page gives its request ids. Every default run fits in the 100 credits a new account starts with. `socialcrawl --help` lists the workflows your version has.
 
 ## Example
 
@@ -45,7 +48,7 @@ sizes: 4 calls, 4 credits
 11 posts broke out at 3x their author's usual reach, on 5 platforms
   X: an account with 2,447 followers at 48.1x its author's median views over 20 earlier posts
   Instagram: @benkimball.ai at 33.4x its author's median likes over 18 earlier posts
-  Reddit: a post in r/ClaudeUniversity at 22.5x its author's median score over 17 earlier posts
+  Reddit: a post in r/ClaudeUniversity at 22.5x its community's median score over 17 earlier posts
   YouTube: @IBMTechnology at 18.6x its author's median views over 20 earlier posts
 Not read: 4 calls (budget). Not verified: 13 items. The report lists each one.
 Cost: 61 credits, 46 calls, 181.6 s.
