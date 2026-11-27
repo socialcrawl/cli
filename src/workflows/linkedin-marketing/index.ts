@@ -10,7 +10,7 @@ import type { BarChart, Table, WorkflowResult } from "../../render/types.ts";
 import { NAME_FLOOR } from "../social-viral/index.ts";
 import type { ViralItem } from "../social-viral/viral.ts";
 import type { Workflow, WorkflowArgs } from "../types.ts";
-import { LI_FLOOR, authorsOf, isCompany, isQuestion } from "./linkedin.ts";
+import { LI_FLOOR, authorsOf, isCompany, isQuestion, questionOf } from "./linkedin.ts";
 import type { AuthorCount } from "./linkedin.ts";
 import { BASELINE_CREDITS, PAGES, runLinkedIn } from "./runner.ts";
 import type { LinkedInInput, LinkedInOutput } from "./runner.ts";
@@ -139,7 +139,7 @@ export function buildResult(out: LinkedInOutput, input: LinkedInInput, deep: boo
     "SocialCrawl reads no labels on LinkedIn comments, so a question here is a comment phrased as one.",
     "",
     ...(questions.length
-      ? questions.slice(0, 5).map(({ r, post }) => `> ${r.text.replace(/\s+/g, " ").trim().slice(0, 240)} (a comment on ${who(post).startsWith("a member") ? "a member's post" : `a post by ${who(post)}`})`).flatMap((q) => [q, ""])
+      ? questions.slice(0, 5).map(({ r, post }) => `> ${questionOf(r.text)} (a comment on ${who(post).startsWith("a member") ? "a member's post" : `a post by ${who(post)}`})`).flatMap((q) => [q, ""])
       : ["No comment read was phrased as a question."]),
   ].join("\n").trim();
 

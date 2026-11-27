@@ -13,7 +13,7 @@ import { validateReport } from "../../../src/engine/validate.ts";
 import { ApiError } from "../../../src/kit/kit.ts";
 import type { ApiBody, Params } from "../../../src/kit/kit.ts";
 import { EXIT, runWorkflow } from "../../../src/run.ts";
-import { LI_FLOOR, authorsOf, isQuestion } from "../../../src/workflows/linkedin-marketing/linkedin.ts";
+import { LI_FLOOR, authorsOf, isQuestion, questionOf } from "../../../src/workflows/linkedin-marketing/linkedin.ts";
 import { workflow } from "../../../src/workflows/linkedin-marketing/index.ts";
 import { rowsOf } from "../../../src/engine/rows.ts";
 import { commentsPage, profilePage, searchPage } from "./fake.ts";
@@ -64,6 +64,11 @@ describe("linkedin-marketing: pure parts", () => {
     assert.equal(isQuestion("Is there a free tier?"), true);
     assert.equal(isQuestion("Great write-up"), false);
     assert.equal(LI_FLOOR, 20);
+  });
+  it("quotes the question itself from a long comment", () => {
+    const long = "Any agent still needs a spec. ".repeat(12) + "No question. Can it fill in the blanks for a vague ticket? Thanks";
+    assert.equal(questionOf(long), "Can it fill in the blanks for a vague ticket?");
+    assert.equal(questionOf("Is there a free tier?"), "Is there a free tier?");
   });
 });
 
@@ -136,6 +141,15 @@ describe("linkedin-marketing: a whole run", () => {
     assert.ok(!md.includes("whose follower count was not read"));
     assert.match(md, /\(a comment on a member's post\)/);
     assert.match(md, /LinkedIn's post search gives no follower counts/);
+  });
+
+  it("quotes a long comment's question, not its opening", async () => {
+    const api = liApi();
+    const base = api.call;
+    const long = "Any agent still needs a spec. ".repeat(12) + "Can it fill in the blanks for a vague ticket?";
+    api.call = async (p: string, params: Params = {}) => (p === "linkedin/post/comments" ? commentsPage([long], "req-long") : base(p, params));
+    const md = (await runOnce(api)).read("report.md");
+    assert.match(md, /^> Can it fill in the blanks for a vague ticket\? \(a comment on/m);
   });
 
   it("says plainly what LinkedIn does not give", async () => {

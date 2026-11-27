@@ -34,6 +34,14 @@ export function authorsOf(rows: Row[]): AuthorCount[] {
 /** LinkedIn comments carry no labels, so a question is a comment phrased as one. */
 export const isQuestion = (text: string) => /\?(\s|$)/.test(text.trim());
 
+/** The first sentence of a comment that ends in a question mark, so a long comment quotes its question. */
+export function questionOf(text: string): string {
+  const flat = text.replace(/\s+/g, " ").trim();
+  const q = flat.match(/[^.!?]*\?/);
+  const sentence = (q ? q[0] : flat).trim();
+  return sentence.length > 240 ? `${sentence.slice(0, 239)}…` : sentence;
+}
+
 /** Members' original posts in the window, at or above the floor. Company posts cannot be measured. */
 export function candidatesOf(rows: Row[], since: string, until: string): { people: Row[]; companies: Row[] } {
   const inWindow = rows.filter((r) => {
