@@ -4,9 +4,10 @@ import { workflow as socialViral } from "./social-viral/index.ts";
 import { workflow as tiktokMarketing } from "./tiktok-marketing/index.ts";
 import { workflow as youtubeMarketing } from "./youtube-marketing/index.ts";
 import { workflow as competitorResearch } from "./competitor-research/index.ts";
+import { workflow as postTracker } from "./post-tracker/index.ts";
 import type { Workflow } from "./types.ts";
 
-export const WORKFLOWS: Workflow[] = [socialViral, tiktokMarketing, instagramMarketing, youtubeMarketing, competitorResearch];
+export const WORKFLOWS: Workflow[] = [socialViral, tiktokMarketing, instagramMarketing, youtubeMarketing, competitorResearch, postTracker];
 
 export function workflowByName(name: string): Workflow | undefined {
   return WORKFLOWS.find((w) => w.name === name);
