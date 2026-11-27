@@ -103,6 +103,13 @@ describe("social-presence: a whole run", () => {
     assert.ok(shown.includes("@acmenotes"));
   });
 
+  it("says in 'How this was read' what each recent-posts read returned", async () => {
+    const md = (await runOnce()).read("report.md");
+    const how = md.split("## How this was read")[1].split("## ")[0];
+    assert.match(how, /activity:twitter, twitter\/user\/tweets: read 6 rows/);
+    assert.match(how, /activity:youtube, youtube\/channel\/videos: read 6 rows/);
+  });
+
   it("names an account judged without a link only from 10,000 followers or a verified badge", async () => {
     const find = findBody([
       platform("twitter", "acmenotes", "same", 0.97, { website_match: true, cross_link: true }, 120_000, true),

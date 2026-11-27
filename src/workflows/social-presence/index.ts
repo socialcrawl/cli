@@ -63,6 +63,7 @@ function tables(out: PresenceOutput): Record<string, Table> {
 export function buildResult(out: PresenceOutput, input: PresenceInput): WorkflowResult {
   const ev = new Evidence();
   ev.seeRequests(out.ledger.requestIds());
+  for (const rec of out.records) if (rec.stage.startsWith("activity:")) ev.cover(rec, rec.stage);
   const findIds = out.find ? requestIdsOf(out.find) : [];
   const count = (s: AccountRead["status"]) => out.accounts.filter((a) => a.status === s).length;
   const [confirmed, judged, possible, none] = [count("confirmed"), count("judged"), count("possible"), count("none")];
