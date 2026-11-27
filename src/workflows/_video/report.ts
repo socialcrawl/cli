@@ -181,7 +181,7 @@ export function videoResult(spec: VideoSpec, run: VideoRun, session: Session, ar
         : measured.length
           ? `None of the ${measured.length} ${P}s with a baseline reached ${BANDS.beat} times its ${A}'s usual views [${F1.id}].`
           : `No ${P} could be measured: the searches found no candidate above the floor with a baseline [${F1.id}].`,
-      brokeRows.length ? "\n" + table(["#", "Account", "× usual", "Views", "Baseline", "Length", "Hook", "Link"], brokeRows) : "",
+      brokeRows.length ? "\n" + table(["#", "Account", "× its usual views", "Views", "Baseline", "Length", "Hook", "Link"], brokeRows) : "",
       flagged.length ? "\n" + flagged.map((i) => `- ${label(i.row)}: ${FLAG_LABEL[i.flag!.flag!]} [${itemFinding.get(i.row.id) ?? F1.id}].`).join("\n") : "",
     ].join("\n"),
   });

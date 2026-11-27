@@ -44,6 +44,7 @@ describe("tiktok-marketing: the report", () => {
     const first = md.indexOf("@bigco");
     assert.ok(first > 0);
     assert.match(md, /40x/);
+    assert.ok(md.includes("| × its usual views |"), "the column says what the multiple is of");
     assert.match(md, /median of 10,000 views over 20 earlier videos, 21\/10 to 09\/11\/2026/, "the baseline's dates, so a reader can judge it");
   });
 
