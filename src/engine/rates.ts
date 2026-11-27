@@ -66,6 +66,7 @@ export const RATES: Record<string, Rate> = {
   "reddit/subreddits/search": { page: 1, walks: true },
   "reddit/search/comments": { page: 1, topicHold: 4, walks: true },
   "reddit/post/comments": { page: 5, walks: true },
+  "reddit/post": { page: 1, walks: false },
   "reddit/profile": { page: 1, walks: false },
   "reddit/profile/posts": { page: 1, walks: true },
   "reddit/profile/comments": { page: 2, walks: false, note: "2 per comment returned; quote it first" },
