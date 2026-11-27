@@ -260,7 +260,8 @@ export interface Opportunity {
   score: number;
 }
 
-const ruleLine = (community: string, c: Community | undefined): string => {
+const ruleLine = (community: string, c: Community | undefined, failed: boolean): string => {
+  if (!c && failed) return `r/${community}: the API did not return its rules in this run; read them on the community's page before replying`;
   if (!c) return `r/${community}: rules not read in this run; read them before replying`;
   if (c.rulesStatus !== "listed") return `r/${community}: rules not reported by the source, which does not mean there are none`;
   const r = c.promotionRules[0];
@@ -271,8 +272,9 @@ const ruleLine = (community: string, c: Community | undefined): string => {
  * Recent threads where people ask for a tool (the API's intent label, or a title that asks), never
  * promotional ones. Fresher threads with fewer replies rank first: an answer there is still seen.
  */
-export function opportunities(threads: Thread[], communities: Map<string, Community>, now: Date, max = MAX_OPPORTUNITIES): Opportunity[] {
+export function opportunities(threads: Thread[], communities: Map<string, Community>, now: Date, max = MAX_OPPORTUNITIES, rulesFailed: string[] = []): Opportunity[] {
   const byName = new Map([...communities].map(([k, v]) => [k.toLowerCase(), v]));
+  const failed = new Set(rulesFailed.map((c) => c.toLowerCase()));
   const out: Opportunity[] = [];
   for (const t of threads) {
     if (t.intent === "promoting" || !t.row.publishedAt || !t.row.community) continue;
@@ -282,7 +284,7 @@ export function opportunities(threads: Thread[], communities: Map<string, Commun
     if (ageDays > OPPORTUNITY_DAYS) continue;
     const intentWeight = t.intent !== null && ASKING_INTENTS.has(t.intent) ? 2 : 1;
     const score = Math.round((intentWeight + 2 * (1 - ageDays / OPPORTUNITY_DAYS) + 1 / (1 + (t.row.comments ?? 0) / 10)) * 1000) / 1000;
-    out.push({ thread: t, ageDays: Math.round(ageDays * 10) / 10, rule: ruleLine(t.row.community, byName.get(t.row.community.toLowerCase())), score });
+    out.push({ thread: t, ageDays: Math.round(ageDays * 10) / 10, rule: ruleLine(t.row.community, byName.get(t.row.community.toLowerCase()), failed.has(t.row.community.toLowerCase())), score });
   }
   return out.sort((a, b) => b.score - a.score || a.thread.row.id.localeCompare(b.thread.row.id)).slice(0, max);
 }

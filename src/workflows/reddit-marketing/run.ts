@@ -29,6 +29,8 @@ export interface RedditRun {
   threads: Thread[];
   breakouts: ThreadBreakout[];
   communities: Community[];
+  /** Communities chosen whose rules did not come back, and why. */
+  rulesFailed: { community: string; why: string }[];
   comments: Comment[];
   commentThreads: Row[];
   commentReads: CommentRead[];
@@ -54,10 +56,16 @@ export async function runReddit(session: Session, input: RedditInput): Promise<R
   const chosen = communitiesToRead(threads, d.communities);
 
   const communities: Community[] = [];
+  const rulesFailed: { community: string; why: string }[] = [];
   for (const name of chosen) {
-    const rec = await send({ ...detailsCall(name), stage: `rules:${name}` });
+    const stage = `rules:${name}`;
+    const rec = await send({ ...detailsCall(name), stage });
     const c = rec ? communityOf(rec) : null;
     if (c) communities.push(c);
+    else {
+      const err = session.errors.find((e) => e.stage === stage);
+      rulesFailed.push({ community: name, why: err ? `the API answered ${err.status ?? "an error"}` : session.notRead.some((n) => n.stage === stage) ? "not read: the run's budget was spent" : "the answer held no community" });
+    }
   }
   const pages = new Map<string, ResponseRecord>();
   for (const name of chosen) {
@@ -96,7 +104,8 @@ export async function runReddit(session: Session, input: RedditInput): Promise<R
     commentThreads,
     commentReads,
     asks: askSummary(comments),
-    opportunities: opportunities(threads, byName, input.now),
+    rulesFailed,
+    opportunities: opportunities(threads, byName, input.now, undefined, rulesFailed.map((r) => r.community)),
     topicReads: searchRecords.map(topicRead),
     searchRecords,
   };

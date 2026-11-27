@@ -8,6 +8,7 @@ import { CARD_MAX_CHARS, CARD_MAX_HEADLINES, ENGINE_SECTIONS, renderCard, render
 import { validateReport } from "../../../src/engine/validate.ts";
 import { REPORT_SECTIONS, buildResult } from "../../../src/workflows/reddit-marketing/render.ts";
 import { runReddit } from "../../../src/workflows/reddit-marketing/run.ts";
+import { ApiError } from "../../../src/kit/kit.ts";
 import { IN, fakeApi, memberNames, session } from "./fake.ts";
 
 async function result() {
@@ -72,6 +73,25 @@ describe("the report", () => {
     assert.match(md, /\| Its community's earlier top posts score too low to compare \| 1 \|/);
     assert.match(md, /too few to compare/);
     assert.ok(!/\| r\/cms \| 11\/11\/2026 \| 5 \|/.test(md), "it is not in the ranked table");
+  });
+
+  it("tells a community whose rules the API did not return from one the run never tried", async () => {
+    // Live, 27/11/2026 12:10 UTC: three subreddit/details reads answered 504 after 60 s.
+    const api = fakeApi();
+    const real = api.call;
+    api.call = async (p, params = {}) => {
+      if (p === "reddit/subreddit/details" && params.subreddit === "nextjs") {
+        api.calls.push({ path: p, params });
+        throw new ApiError(504, { success: false });
+      }
+      return real(p, params);
+    };
+    const s = session(api);
+    const run = await runReddit(s, IN);
+    const md = renderReport(buildResult(run, s.meta(), s.records).report);
+    assert.match(md, /r\/nextjs: the API did not return its rules in this run; read them on the community's page before replying/);
+    assert.match(md, /- Rules of r\/nextjs: the API answered 504/);
+    assert.match(md, /r\/CloudFlare: rules not read in this run/, "a community never tried keeps its own line");
   });
 
   it("cites only requests the run made", async () => {

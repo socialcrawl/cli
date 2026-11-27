@@ -112,7 +112,7 @@ export function buildResult(run: RedditRun, meta: Meta, records: (ResponseRecord
   if (notRead) ev.unknown({ what: "Threads in communities that were not read", why: `${plural(notRead, "thread")} have no multiple: their community's top posts were outside this run's budget` });
   for (const c of run.commentReads) if (c.total !== null && c.returned < c.total) ev.unknown({ what: `Comments under thread ${c.threadId}`, why: `${n(c.returned)} returned of the ${n(c.total)} the thread shows; Reddit's count includes removed comments${c.truncated ? ", and the tree was cut at the page" : ""}` });
   ev.unknown({ what: "Views", why: "Reddit publishes no view count for a thread, so scores and comments are the only reach read" });
-  if (run.chosen.length > run.communities.length) ev.unknown({ what: "Communities whose rules were not read", why: run.chosen.filter((c) => !run.communities.some((x) => x.name.toLowerCase() === c.toLowerCase())).map((c) => `r/${c}`).join(", ") });
+  for (const f of run.rulesFailed) ev.unknown({ what: `Rules of r/${f.community}`, why: `${f.why}; read them on the community's page before replying`, check: `https://www.reddit.com/r/${f.community}/about/rules` });
 
   // ── The report's sections ────────────────────────────────────────────────
   const link = (title: string, url: string | null) => (url ? `[${cell(short(title, 80))}](${url})` : cell(short(title, 80)));
