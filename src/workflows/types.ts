@@ -31,6 +31,8 @@ export interface WorkflowQuote {
   max: number;
   /** Optional detail lines, one per stage. */
   lines: string[];
+  /** One line printed right after the price on every run, for example "It takes about 20 minutes." */
+  note?: string;
 }
 
 export interface Workflow {

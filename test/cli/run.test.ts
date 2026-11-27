@@ -69,6 +69,19 @@ describe("runWorkflow", () => {
     assert.deepEqual(seen, [true]);
   });
 
+  it("prints the quote's note right after the price line, on a run and with --plan", async () => {
+    const quote = () => ({ expected: 5, max: 10, lines: ["search: about 5 credits"], note: "It takes about 20 minutes." });
+    for (const plan of [false, true]) {
+      const h = harness({ opts: { plan }, workflow: { quote } });
+      await runWorkflow(h.ctx);
+      const at = h.err.findIndex((l) => l.startsWith("This run reads about"));
+      assert.equal(h.err[at + 1], "It takes about 20 minutes.", h.err.join("\n"));
+    }
+    const plain = harness({ workflow: { quote: () => ({ expected: 5, max: 10, lines: [] }) } });
+    await runWorkflow(plain.ctx);
+    assert.ok(!plain.err.some((l) => /takes about/.test(l)));
+  });
+
   it("with --plan prints the quote and spends nothing", async () => {
     const h = harness({ opts: { plan: true } });
     assert.equal(await runWorkflow(h.ctx), EXIT.ok);

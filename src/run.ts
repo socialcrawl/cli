@@ -73,6 +73,7 @@ export async function runWorkflow(ctx: RunContext): Promise<number> {
   const balanceBody = await ctx.kit.balance();
   const balance = Number((balanceBody.data as { balance?: number } | undefined)?.balance ?? balanceBody.credits_remaining ?? 0);
   ctx.err(`This run reads about ${credits(quote.expected)} (at most ${quote.max}). You have ${balance.toLocaleString("en-GB")}.`);
+  if (quote.note) ctx.err(quote.note);
   if (opts.plan) {
     for (const l of quote.lines) ctx.err(l);
     ctx.err("Plan only: nothing was spent.");
