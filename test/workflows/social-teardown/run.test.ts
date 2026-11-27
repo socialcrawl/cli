@@ -62,6 +62,14 @@ describe("the social-teardown workflow", () => {
     assert.ok(q.expected >= 60 && q.expected <= 100, `expected ${q.expected}`);
   });
 
+  it("says how long a run takes, as measured: about 4 minutes by default, about 20 with --deep", async () => {
+    const d = await workflow.quote(args("@notionhq"));
+    const deep = await workflow.quote(args("@notionhq", true));
+    assert.ok(d.lines.some((l) => /about 4 minutes/.test(l)), d.lines.join(" | "));
+    assert.ok(deep.lines.some((l) => /about 20 minutes/.test(l)), deep.lines.join(" | "));
+    assert.ok(deep.expected >= 400 && deep.expected <= 520, `deep expected ${deep.expected}; measured 438`);
+  });
+
   it("refuses input it cannot read before spending anything", async () => {
     await assert.rejects(async () => workflow.quote(args("myspace:tom")), /platform/);
   });
