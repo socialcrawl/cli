@@ -204,7 +204,7 @@ export function buildResult(out: ViralRunOutput, input: PlanInput, deep: boolean
   });
   const breakouts = [
     viral.length
-      ? "Each post against its own author's earlier posts. A break-out is 3x or more."
+      ? "Each post is compared with its own author's earlier posts; a break-out is 3x or more."
       : "No post reached 3x its author's usual reach. The closest posts are below.",
     "",
     "| # | Platform | Post | Multiple | Reach | Compared with | Note |",
@@ -224,7 +224,7 @@ export function buildResult(out: ViralRunOutput, input: PlanInput, deep: boolean
   ].join("\n");
 
   const wontCopy = [
-    "A multiple compares a post with its own author's usual reach, not with yours. Copy the format and the hook, then judge the result against your own earlier posts.",
+    "A multiple compares a post with its author's usual reach, so it says nothing about how the same post would do on your account. Copy the format and the hook, then judge the result against your own earlier posts.",
     ...(smallViral ? [`${smallViral} of the ${viral.length} break-outs came from accounts under 10,000 followers, where a small usual reach makes a high multiple easier [${f1.id}].`] : []),
     ...(viral.some((i) => i.flag?.flag) ? ["A post with a flag in the Note column may owe part of its reach to something other than the post itself."] : []),
   ].join("\n\n");
@@ -236,7 +236,7 @@ export function buildResult(out: ViralRunOutput, input: PlanInput, deep: boolean
     "```bash",
     `socialcrawl social-viral "${input.topic}"`,
     "```",
-    ...(leader ? ["", `The number to check: the leading post's multiple, ${fm(leader.breakout.multiple ?? 0)}x today${ref(leader)}.`] : []),
+    ...(leader ? ["", `Then check whether the leading post still stands at ${fm(leader.breakout.multiple ?? 0)}x its author's usual reach${ref(leader)}.`] : []),
     ...(deep ? [] : ["", "Read more authors and pages with a deep run, quoted for free before it starts:", "", "```bash", `socialcrawl social-viral "${input.topic}" --deep`, "```"]),
     ...(leader && named(leader.row) && leader.row.platform !== "reddit"
       ? ["", "Take the leading account apart:", "", "```bash", `socialcrawl social-teardown "${leader.row.platform === "linkedin" ? leader.row.author : "@" + leader.row.author}"`, "```"]
