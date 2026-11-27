@@ -25,6 +25,18 @@ export function tagProblems(tag: string, pkgVersion: string, changelog: string):
   return problems;
 }
 
+/**
+ * The files in `npm pack --dry-run --json` output, with forward slashes. npm 11 prints a list
+ * of packages; npm 12 prints an object keyed by package name.
+ */
+export function packedFiles(json: string): string[] {
+  const parsed = JSON.parse(json) as unknown;
+  const entries = (Array.isArray(parsed) ? parsed : Object.values(parsed as object)) as { files?: { path: string }[] }[];
+  const files = entries[0]?.files;
+  if (!files) throw new Error("npm pack --json listed no package");
+  return files.map((f) => f.path.replace(/\\/g, "/"));
+}
+
 const REQUIRED = ["package.json", "README.md", "LICENSE", "THIRD_PARTY_NOTICES.md", "dist/cli.js"];
 
 /** What is wrong with the list of files `npm pack` would publish. */

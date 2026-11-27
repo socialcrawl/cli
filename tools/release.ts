@@ -12,7 +12,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
-import { changelogSection, keyShaped, packProblems, tagProblems } from "./release-lib.ts";
+import { changelogSection, keyShaped, packedFiles, packProblems, tagProblems } from "./release-lib.ts";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const { values } = parseArgs({ options: { ci: { type: "boolean", default: false }, tag: { type: "string" }, notes: { type: "string" } } });
@@ -37,8 +37,7 @@ if (!values.ci) {
 const tag = values.tag ?? `v${pkg.version}`;
 problems.push(...tagProblems(tag, pkg.version, changelog));
 
-const packed = JSON.parse(execFileSync(npm, ["pack", "--dry-run", "--json", "--ignore-scripts"], { cwd: root, encoding: "utf8", shell: process.platform === "win32" })) as { files: { path: string }[] }[];
-const files = packed[0].files.map((f) => f.path.split(path.sep).join("/"));
+const files = packedFiles(execFileSync(npm, ["pack", "--dry-run", "--json", "--ignore-scripts"], { cwd: root, encoding: "utf8", shell: process.platform === "win32" }));
 problems.push(...packProblems(files));
 for (const f of files) {
   const found = keyShaped(readFileSync(path.join(root, f), "utf8"));

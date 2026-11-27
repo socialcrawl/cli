@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { changelogSection, keyShaped, packProblems, tagProblems } from "../../tools/release-lib.ts";
+import { changelogSection, keyShaped, packedFiles, packProblems, tagProblems } from "../../tools/release-lib.ts";
 
 const CHANGELOG = ["# Changelog", "", "## Unreleased", "", "- next thing", "", "## 0.1.0 (27/11/2026)", "", "- First release.", "- init.", "", "## 0.0.9 (01/11/2026)", "", "- old"].join("\n");
 
@@ -46,5 +46,18 @@ describe("keyShaped", () => {
     const fake = "sc_" + "Live_" + "Ab3".repeat(14);
     assert.deepEqual(keyShaped(`const k = "${fake}";`), [fake]);
     assert.deepEqual(keyShaped("sc_Test_notarealkey6789 and sc_ alone"), []);
+  });
+});
+
+describe("packedFiles", () => {
+  const entry = { name: "socialcrawl", version: "0.1.0", files: [{ path: "package.json" }, { path: "dist\\cli.js" }] };
+  it("reads npm 11's output, a list of packages", () => {
+    assert.deepEqual(packedFiles(JSON.stringify([entry])), ["package.json", "dist/cli.js"]);
+  });
+  it("reads npm 12's output, an object keyed by package name", () => {
+    assert.deepEqual(packedFiles(JSON.stringify({ socialcrawl: entry })), ["package.json", "dist/cli.js"]);
+  });
+  it("throws a plain error when the output has no package in it", () => {
+    assert.throws(() => packedFiles("{}"), /npm pack --json listed no package/);
   });
 });
