@@ -97,7 +97,7 @@ describe("linkedin-marketing: a whole run", () => {
   });
 
   it("measures a member's post against their earlier posts", async () => {
-    assert.match((await runOnce()).read("report.md"), /15x its author's median likes over 10 earlier posts/);
+    assert.match((await runOnce()).read("report.md"), /15x their median likes over 10 earlier posts/);
   });
 
   it("names companies and members over 10,000 followers only, and quotes comment questions without names", async () => {
@@ -126,6 +126,16 @@ describe("linkedin-marketing: a whole run", () => {
     api.call = async (p: string, params: Params = {}) => (p === "linkedin/post/comments" ? commentsPage(n++ === 0 ? ["Is it free?", "Nice"] : ["Agreed"], `req-c${n}`) : base(p, params));
     const md = (await runOnce(api)).read("report.md");
     assert.match(md, /1 of the 3 comments read is phrased as a question/);
+  });
+
+  it("calls a member with no follower count 'a member', starts each summary line with a capital, and says why members go unnamed", async () => {
+    const md = (await runOnce()).read("report.md");
+    const summary = md.split("## In short")[1].split("## ")[0];
+    for (const line of summary.split("\n").filter((l) => /^\d+\. /.test(l))) assert.match(line, /^\d+\. [A-Z0-9]/, line);
+    assert.match(summary, /A member at 15x their median likes over 10 earlier posts/);
+    assert.ok(!md.includes("whose follower count was not read"));
+    assert.match(md, /\(a comment on a member's post\)/);
+    assert.match(md, /LinkedIn's post search gives no follower counts/);
   });
 
   it("says plainly what LinkedIn does not give", async () => {

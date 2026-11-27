@@ -28,8 +28,9 @@ function inputOf(args: WorkflowArgs): LinkedInInput {
 function whoOf(author: string, company: boolean, followers: number | null): string {
   if (company) return author;
   if (followers !== null && followers >= NAME_FLOOR) return author;
-  return followers === null ? "a member whose follower count was not read" : `a member with ${n(followers)} followers`;
+  return followers === null ? "a member" : `a member with ${n(followers)} followers`;
 }
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const who = (r: Row) => whoOf(r.author, isCompany(r), r.authorFollowers);
 const whoA = (a: AuthorCount) => whoOf(a.author, a.company, a.followers);
 
@@ -75,7 +76,7 @@ export function buildResult(out: LinkedInOutput, input: LinkedInInput, deep: boo
     const b = i.breakout;
     const numbers: Record<string, number> = {};
     for (const [k, v] of Object.entries({ multiple: b.multiple, value: b.value, base: b.base, peers: b.peers })) if (v !== null) numbers[k] = v;
-    const f = ev.add({ claim: `${who(i.row)} at ${formatNumber(b.multiple ?? 0)}x its author's median likes over ${b.peers} earlier posts`, confidence: "seen", numbers, requests: b.requestIds.length ? b.requestIds : searchIds });
+    const f = ev.add({ claim: `${who(i.row)} at ${formatNumber(b.multiple ?? 0)}x their median likes over ${b.peers} earlier posts`, confidence: "seen", numbers, requests: b.requestIds.length ? b.requestIds : searchIds });
     findingOf.set(i, f.id);
   }
   const ref = (i: ViralItem) => (findingOf.has(i) ? ` [${findingOf.get(i)}]` : "");
@@ -102,7 +103,7 @@ export function buildResult(out: LinkedInOutput, input: LinkedInInput, deep: boo
   for (const nr of out.notRead) ev.unknown({ what: `${nr.stage}, ${nr.endpoint}`, why: nr.limit === "stage" ? "not sent: this stage's share was used up" : "not sent: this run's credits were used up" });
 
   const summary = [`${headline} [${f1.id}]`];
-  for (const i of viral.slice(0, 3)) summary.push(`${who(i.row)} at ${formatNumber(i.breakout.multiple ?? 0)}x its author's median likes over ${i.breakout.peers} earlier posts${ref(i)}`);
+  for (const i of viral.slice(0, 3)) summary.push(`${cap(who(i.row))} at ${formatNumber(i.breakout.multiple ?? 0)}x their median likes over ${i.breakout.peers} earlier posts${ref(i)}`);
   summary.push(`${questions.length} of the ${allComments.length} comments read ${questions.length === 1 ? "is phrased as a question" : "are phrased as questions"} [${f3.id}]`);
 
   const shown = viral.length ? viral.slice(0, 15) : out.result.items.filter((i) => i.breakout.multiple !== null).slice(0, 5);
@@ -138,7 +139,7 @@ export function buildResult(out: LinkedInOutput, input: LinkedInInput, deep: boo
     "SocialCrawl reads no labels on LinkedIn comments, so a question here is a comment phrased as one.",
     "",
     ...(questions.length
-      ? questions.slice(0, 5).map(({ r, post }) => `> ${r.text.replace(/\s+/g, " ").trim().slice(0, 240)} (a comment on a post by ${who(post)})`).flatMap((q) => [q, ""])
+      ? questions.slice(0, 5).map(({ r, post }) => `> ${r.text.replace(/\s+/g, " ").trim().slice(0, 240)} (a comment on ${who(post).startsWith("a member") ? "a member's post" : `a post by ${who(post)}`})`).flatMap((q) => [q, ""])
       : ["No comment read was phrased as a question."]),
   ].join("\n").trim();
 
@@ -159,7 +160,7 @@ export function buildResult(out: LinkedInOutput, input: LinkedInInput, deep: boo
     `Searched LinkedIn posts for "${input.topic}" in the past ${period}, ${deep ? PAGES.deep : PAGES.default} pages, kept when judged on topic.`,
     `A break-out is a member's post at 3x or more the median likes of their earlier posts, over at least ${MIN_PEERS} of them, read only for posts with ${LI_FLOOR} likes or more. Earlier posts cost 5 credits a member, up to ${deep ? BASELINE_CREDITS.deep : BASELINE_CREDITS.default} credits a run.`,
     "LinkedIn gives no view counts and no labels on comments, and a company's own posts need a numeric id the search does not give.",
-    `Members under ${n(NAME_FLOOR)} followers, or whose followers were not read, are described, not named; companies are named.`,
+    `LinkedIn's post search gives no follower counts, so a member is described, not named, unless a count of ${n(NAME_FLOOR)} or more was read; companies are named.`,
   ];
 
   const chart: BarChart = {
@@ -177,7 +178,7 @@ export function buildResult(out: LinkedInOutput, input: LinkedInInput, deep: boo
       skill: SKILL,
       headlines: [
         short(headline),
-        ...(lead ? [short(`${who(lead.row)} at ${formatNumber(lead.breakout.multiple ?? 0)}x their usual likes`)] : []),
+        ...(lead ? [short(`${cap(who(lead.row))} at ${formatNumber(lead.breakout.multiple ?? 0)}x their usual likes`)] : []),
         short(`${questions.length} of ${allComments.length} comments on the top posts asked a question`),
       ],
       basis: `${n(out.rows.length)} LinkedIn posts read, ${dmy(out.window.since)} to ${dmy(out.window.until)}${busiest ? `; most posts from ${whoA(busiest)}` : ""}`.slice(0, 120),
