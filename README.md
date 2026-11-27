@@ -25,7 +25,7 @@ socialcrawl social-viral "AI coding tools"
 | Workflow | Give it | Default run, measured | At most |
 | --- | --- | --- | --- |
 | [`social-viral`](https://github.com/socialcrawl/workflows/tree/main/skills/social-viral) | a topic | 61 credits | 100 |
-| [`social-pulse`](https://github.com/socialcrawl/workflows/tree/main/skills/social-pulse) | a brand or topic | 41 credits | 100 |
+| [`social-pulse`](https://github.com/socialcrawl/workflows/tree/main/skills/social-pulse) | a brand or topic | 43 credits | 100 |
 | [`social-presence`](https://github.com/socialcrawl/workflows/tree/main/skills/social-presence) | a brand or public figure, and its website | 23 credits | 43 |
 | [`tiktok-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/tiktok-marketing) | a keyword | 40 credits | 55 |
 | [`instagram-marketing`](https://github.com/socialcrawl/workflows/tree/main/skills/instagram-marketing) | a keyword | 48 credits | 60 |
